@@ -264,6 +264,20 @@ textarea { resize: vertical; font-family: inherit; }
   margin-bottom: 12px;
 }
 
+.success-msg.warning {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+}
+
+.truncation-msg {
+  background: rgba(243, 156, 18, 0.1);
+  color: #f39c12;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
 /* SONG LIST */
 .songlist-header { margin-bottom: 16px; }
 

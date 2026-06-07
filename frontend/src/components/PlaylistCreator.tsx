@@ -12,8 +12,10 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
   const [description, setDescription] = useState('')
   const [public_, setPublic_] = useState(true)
   const [creating, setCreating] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [result, setResult] = useState<{ msg: string; truncated: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const displayTotal = totalTracks > 10000 ? `${totalTracks} (máx. 10.000)` : totalTracks
 
   async function handleCreate() {
     if (!name.trim()) {
@@ -36,7 +38,12 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
         public: public_,
         filter_criteria: filterRequest,
       })
-      setResult(`Playlist "${res.name}" creada exitosamente en tu cuenta de Spotify.`)
+      const truncated = res.truncated ?? false
+      let msg = `Playlist "${res.name}" creada exitosamente en tu cuenta de Spotify.`
+      if (truncated) {
+        msg += ` Se agregaron ${res.total_added} de ${res.total_matched} canciones (límite de 10.000 de Spotify).`
+      }
+      setResult({ msg, truncated })
       setName('')
       setDescription('')
     } catch (e) {
@@ -49,7 +56,9 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
   return (
     <div className="playlist-creator">
       <h3>Crear Playlist</h3>
-      {result && <div className="success-msg">{result}</div>}
+      {result && (
+        <div className={`success-msg${result.truncated ? ' warning' : ''}`}>{result.msg}</div>
+      )}
       {error && <div className="error-msg">{error}</div>}
       <div className="form-group">
         <label>Nombre de la playlist</label>
@@ -82,12 +91,17 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
           Playlist pública
         </label>
       </div>
+      {totalTracks > 10000 && (
+        <div className="truncation-msg">
+          Solo se agregarán las primeras 10.000 canciones de {totalTracks} (límite de Spotify).
+        </div>
+      )}
       <button
         className="btn-create"
         onClick={handleCreate}
         disabled={creating || totalTracks === 0}
       >
-        {creating ? 'Creando...' : `Crear Playlist (${totalTracks} canciones)`}
+        {creating ? 'Creando...' : `Crear Playlist (${displayTotal} canc.)`}
       </button>
     </div>
   )

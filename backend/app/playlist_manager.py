@@ -66,6 +66,9 @@ async def get_filtered_tracks(
     return paginated, total
 
 
+SPOTIFY_PLAYLIST_MAX = 10000
+
+
 async def create_playlist_from_filters(
     user: User,
     db: AsyncSession,
@@ -74,13 +77,28 @@ async def create_playlist_from_filters(
     public: bool,
     filter_req: FilterRequest,
 ) -> dict:
-    filtered_tracks, _ = await get_filtered_tracks(user, db, filter_req)
+    full_req = FilterRequest(
+        and_filters=filter_req.and_filters,
+        or_filters=filter_req.or_filters,
+        limit=SPOTIFY_PLAYLIST_MAX,
+        offset=0,
+    )
+    filtered_tracks, total_matched = await get_filtered_tracks(user, db, full_req)
 
     if not filtered_tracks:
         raise ValueError("No tracks match the filter criteria")
 
-    client = SpotifyClient(user, db)
-    track_uris = [f"spotify:track:{t.track_id}" for t in filtered_tracks]
+    tracks_to_add = filtered_tracks[:SPOTIFY_PLAYLIST_MAX]
+    total_added = len(tracks_to_add)
 
+    client = SpotifyClient(user, db)
+    track_uris = [f"spotify:track:{t.track_id}" for t in tracks_to_add]
     playlist = await client.create_playlist(name, description, public, track_uris)
-    return playlist
+
+    return {
+        "playlist": playlist,
+        "name": playlist.get("name", name),
+        "total_matched": total_matched,
+        "total_added": total_added,
+        "truncated": total_matched > SPOTIFY_PLAYLIST_MAX,
+    }

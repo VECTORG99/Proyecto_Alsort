@@ -56,7 +56,7 @@ export async function filterTracks(req: FilterRequest): Promise<FilterResponse> 
   return res.json()
 }
 
-export async function createPlaylist(req: CreatePlaylistRequest): Promise<{ playlist: unknown; name: string }> {
+export async function createPlaylist(req: CreatePlaylistRequest): Promise<{ playlist: unknown; name: string; total_matched: number; total_added: number; truncated: boolean }> {
   const res = await fetch(`${API_BASE}/api/playlists`, {
     method: 'POST',
     headers: headers(),

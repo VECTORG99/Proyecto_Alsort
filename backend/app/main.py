@@ -78,9 +78,9 @@ async def create_playlist(
     db: AsyncSession = Depends(get_session),
 ):
     try:
-        playlist = await create_playlist_from_filters(
+        result = await create_playlist_from_filters(
             user, db, req.name, req.description, req.public, req.filter_criteria
         )
-        return {"playlist": playlist, "name": playlist.get("name", req.name)}
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
