@@ -1,9 +1,9 @@
 import type { Track } from '../types'
+import { useLoading } from '../context/LoadingContext'
 
 interface SongListProps {
   tracks: Track[]
   total: number
-  loading: boolean
 }
 
 function formatDuration(ms: number): string {
@@ -12,8 +12,9 @@ function formatDuration(ms: number): string {
   return `${min}:${sec.toString().padStart(2, '0')}`
 }
 
-export default function SongList({ tracks, total, loading }: SongListProps) {
-  if (loading) {
+export default function SongList({ tracks, total }: SongListProps) {
+  const { isLoading } = useLoading()
+  if (isLoading) {
     return <div className="songlist-loading">Cargando canciones...</div>
   }
 

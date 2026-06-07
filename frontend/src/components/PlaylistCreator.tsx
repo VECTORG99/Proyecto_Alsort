@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPlaylist } from '../services/api'
+import { useLoading } from '../context/LoadingContext'
 import type { FilterRequest } from '../types'
 
 interface PlaylistCreatorProps {
@@ -8,10 +9,10 @@ interface PlaylistCreatorProps {
 }
 
 export default function PlaylistCreator({ filterRequest, totalTracks }: PlaylistCreatorProps) {
+  const { startLoading, stopLoading, isLoading } = useLoading()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [public_, setPublic_] = useState(true)
-  const [creating, setCreating] = useState(false)
   const [result, setResult] = useState<{ msg: string; truncated: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +28,7 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
       return
     }
 
-    setCreating(true)
+    startLoading('Creando playlist en Spotify...')
     setError(null)
     setResult(null)
 
@@ -49,7 +50,7 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al crear la playlist')
     } finally {
-      setCreating(false)
+      stopLoading()
     }
   }
 
@@ -67,7 +68,7 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Mi playlist filtrada"
-          disabled={creating}
+          disabled={isLoading}
         />
       </div>
       <div className="form-group">
@@ -77,7 +78,7 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Playlist creada con Alsort"
           rows={2}
-          disabled={creating}
+          disabled={isLoading}
         />
       </div>
       <div className="form-group checkbox">
@@ -86,7 +87,7 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
             type="checkbox"
             checked={public_}
             onChange={(e) => setPublic_(e.target.checked)}
-            disabled={creating}
+            disabled={isLoading}
           />
           Playlist pública
         </label>
@@ -99,9 +100,9 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
       <button
         className="btn-create"
         onClick={handleCreate}
-        disabled={creating || totalTracks === 0}
+        disabled={isLoading || totalTracks === 0}
       >
-        {creating ? 'Creando...' : `Crear Playlist (${displayTotal} canc.)`}
+        {isLoading ? 'Creando...' : `Crear Playlist (${displayTotal} canc.)`}
       </button>
     </div>
   )

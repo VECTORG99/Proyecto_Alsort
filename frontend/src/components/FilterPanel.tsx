@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react'
 import type { FilterCriterion, FilterType, FilterOperator, FilterValue } from '../types'
 import { FILTER_LABELS, FILTER_OPERATORS } from '../types'
+import { useLoading } from '../context/LoadingContext'
 
 interface FilterPanelProps {
   onApply: (andFilters: FilterCriterion[], orFilters: FilterCriterion[]) => void
-  loading: boolean
 }
 
 const FILTER_TYPES: FilterType[] = [
@@ -30,7 +30,8 @@ function getDefaultValue(type: FilterType, operator: FilterOperator): FilterValu
   return ''
 }
 
-export default function FilterPanel({ onApply, loading }: FilterPanelProps) {
+export default function FilterPanel({ onApply }: FilterPanelProps) {
+  const { isLoading } = useLoading()
   const [andFilters, setAndFilters] = useState<FilterCriterion[]>([])
   const [orFilters, setOrFilters] = useState<FilterCriterion[]>([])
 
@@ -104,8 +105,8 @@ export default function FilterPanel({ onApply, loading }: FilterPanelProps) {
         onRemove={(i) => removeFilter('or', i)}
       />
 
-      <button className="btn-apply" onClick={handleApply} disabled={loading}>
-        {loading ? 'Filtrando...' : 'Aplicar Filtros'}
+      <button className="btn-apply" onClick={handleApply} disabled={isLoading}>
+        {isLoading ? 'Filtrando...' : 'Aplicar Filtros'}
       </button>
     </div>
   )

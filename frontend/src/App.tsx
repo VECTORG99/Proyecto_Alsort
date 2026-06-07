@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import { getMe, clearSession } from './services/api'
+import { LoadingProvider } from './context/LoadingContext'
 import type { UserInfo } from './types'
 
 export default function App() {
@@ -48,9 +49,9 @@ export default function App() {
     return <div className="error">{error}</div>
   }
 
-  if (!user) {
-    return <Login />
-  }
-
-  return <Dashboard user={user} />
+  return (
+    <LoadingProvider>
+      {!user ? <Login /> : <Dashboard user={user} />}
+    </LoadingProvider>
+  )
 }

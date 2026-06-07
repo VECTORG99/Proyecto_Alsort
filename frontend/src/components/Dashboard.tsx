@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { UserInfo, Track, FilterCriterion, FilterRequest } from '../types'
-import { getMe, syncTracks, filterTracks } from '../services/api'
+import { syncTracks, filterTracks } from '../services/api'
+import { useLoading } from '../context/LoadingContext'
 import FilterPanel from './FilterPanel'
 import SongList from './SongList'
 import PlaylistCreator from './PlaylistCreator'
@@ -10,10 +11,9 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
+  const { startLoading, stopLoading } = useLoading()
   const [tracks, setTracks] = useState<Track[]>([])
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [currentFilterReq, setCurrentFilterReq] = useState<FilterRequest>({
     and_filters: [],
@@ -23,7 +23,7 @@ export default function Dashboard({ user }: DashboardProps) {
   })
 
   const fetchFiltered = useCallback(async (andFilters: FilterCriterion[], orFilters: FilterCriterion[]) => {
-    setLoading(true)
+    startLoading('Filtrando canciones...')
     try {
       const req: FilterRequest = {
         and_filters: andFilters,
@@ -38,16 +38,16 @@ export default function Dashboard({ user }: DashboardProps) {
     } catch (e) {
       console.error('Filter error:', e)
     } finally {
-      setLoading(false)
+      stopLoading()
     }
-  }, [])
+  }, [startLoading, stopLoading])
 
   useEffect(() => {
     fetchFiltered([], [])
   }, [fetchFiltered])
 
   async function handleSync() {
-    setSyncing(true)
+    startLoading('Sincronizando canciones de Spotify...')
     setSyncMsg(null)
     try {
       const res = await syncTracks()
@@ -56,7 +56,7 @@ export default function Dashboard({ user }: DashboardProps) {
     } catch (e) {
       setSyncMsg('Error al sincronizar')
     } finally {
-      setSyncing(false)
+      stopLoading()
     }
   }
 
@@ -69,22 +69,22 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
         <div className="header-right">
           {syncMsg && <span className="sync-msg">{syncMsg}</span>}
-          <button className="btn-sync" onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Sincronizando...' : '🔄 Sincronizar likes'}
+          <button className="btn-sync" onClick={handleSync}>
+            Sincronizar likes
           </button>
         </div>
       </header>
 
       <div className="dashboard-content">
         <aside className="sidebar">
-          <FilterPanel onApply={fetchFiltered} loading={loading} />
+          <FilterPanel onApply={fetchFiltered} />
           <PlaylistCreator
             filterRequest={currentFilterReq}
             totalTracks={total}
           />
         </aside>
         <main className="main-content">
-          <SongList tracks={tracks} total={total} loading={loading} />
+          <SongList tracks={tracks} total={total} />
         </main>
       </div>
     </div>
