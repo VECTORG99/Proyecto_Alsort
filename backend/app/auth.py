@@ -16,13 +16,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def generate_code_verifier() -> str:
-    return base64.urlsafe_b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes).rstrip("=").decode()
+    return base64.urlsafe_b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes).decode().rstrip("=")
 
 
 def generate_code_challenge(verifier: str) -> str:
     return base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode()).digest()
-    ).rstrip("=").decode()
+    ).decode().rstrip("=")
 
 
 @router.get("/login")
