@@ -4,6 +4,11 @@ import { useLoading } from '../context/LoadingContext'
 interface SongListProps {
   tracks: Track[]
   total: number
+  page: number
+  pageSize: number
+  pageSizes: number[]
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
 }
 
 function formatDuration(ms: number): string {
@@ -12,8 +17,12 @@ function formatDuration(ms: number): string {
   return `${min}:${sec.toString().padStart(2, '0')}`
 }
 
-export default function SongList({ tracks, total }: SongListProps) {
+export default function SongList({ tracks, total, page, pageSize, pageSizes, onPageChange, onPageSizeChange }: SongListProps) {
   const { isLoading } = useLoading()
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const from = total === 0 ? 0 : page * pageSize + 1
+  const to = Math.min((page + 1) * pageSize, total)
+
   if (isLoading) {
     return <div className="songlist-loading">Cargando canciones...</div>
   }
@@ -69,6 +78,38 @@ export default function SongList({ tracks, total }: SongListProps) {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="pagination">
+        <div className="pagination-info">
+          {from}–{to} de {total}
+        </div>
+        <div className="pagination-controls">
+          <select
+            className="page-size-select"
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          >
+            {pageSizes.map((s) => (
+              <option key={s} value={s}>{s} / pág</option>
+            ))}
+          </select>
+          <button
+            className="btn-page"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 0}
+          >
+            ‹ Anterior
+          </button>
+          <span className="page-indicator">{page + 1} de {totalPages}</span>
+          <button
+            className="btn-page"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page + 1 >= totalPages}
+          >
+            Siguiente ›
+          </button>
+        </div>
       </div>
     </div>
   )

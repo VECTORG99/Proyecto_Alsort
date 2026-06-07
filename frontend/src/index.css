@@ -316,6 +316,48 @@ textarea { resize: vertical; font-family: inherit; }
   margin-bottom: 8px;
 }
 
+/* PAGINATION */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  color: var(--text2);
+  font-size: 0.85rem;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-size-select {
+  width: auto;
+  min-width: 90px;
+}
+
+.btn-page {
+  background: var(--surface2);
+  color: var(--text);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.btn-page:hover:not(:disabled) { background: #333; }
+
+.page-indicator {
+  color: var(--text2);
+  font-size: 0.85rem;
+  min-width: 60px;
+  text-align: center;
+}
+
 /* SONG LIST */
 .songlist-header { margin-bottom: 16px; }
 
