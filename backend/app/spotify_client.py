@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +8,15 @@ from .database import User, CachedTrack
 from .auth import refresh_spotify_token
 
 
+RETRYABLE_STATUSES = {429, 502, 503, 504}
+MAX_RETRIES = 3
+RATE_LIMIT_MAX = 280
+RATE_LIMIT_WINDOW = 60
+
+
 class SpotifyClient:
+    _request_timestamps: list[float] = []
+
     def __init__(self, user: User, db: AsyncSession):
         self.user = user
         self.db = db
@@ -21,112 +30,139 @@ class SpotifyClient:
         await self._ensure_token()
         return {"Authorization": f"Bearer {self.user.access_token}"}
 
+    async def _rate_limit_wait(self):
+        now = asyncio.get_event_loop().time()
+        cutoff = now - RATE_LIMIT_WINDOW
+        self.__class__._request_timestamps = [t for t in self._request_timestamps if t > cutoff]
+
+        if len(self._request_timestamps) >= RATE_LIMIT_MAX:
+            wait = self._request_timestamps[0] - cutoff
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self.__class__._request_timestamps = []
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        max_retries: int = MAX_RETRIES,
+        **kwargs,
+    ) -> httpx.Response:
+        url = f"{self._base_url}{path}" if path.startswith("/") else f"{self._base_url}/{path}"
+        headers = await self._get_headers()
+        if "headers" in kwargs:
+            headers.update(kwargs.pop("headers"))
+
+        for attempt in range(max_retries + 1):
+            await self._rate_limit_wait()
+
+            async with httpx.AsyncClient() as client:
+                try:
+                    resp = await client.request(method, url, headers=headers, **kwargs)
+                except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+                    if attempt < max_retries:
+                        wait = 2 ** attempt
+                        await asyncio.sleep(wait)
+                        continue
+                    raise Exception(f"Spotify API request failed after {max_retries} retries: {e}")
+
+            self.__class__._request_timestamps.append(asyncio.get_event_loop().time())
+
+            if resp.status_code == 429 and attempt < max_retries:
+                retry_after = int(resp.headers.get("Retry-After", 2 ** attempt))
+                await asyncio.sleep(retry_after)
+                continue
+
+            if resp.status_code in RETRYABLE_STATUSES and attempt < max_retries:
+                wait = 2 ** attempt
+                await asyncio.sleep(wait)
+                continue
+
+            return resp
+
+        raise Exception(f"Spotify API error: {resp.status_code} {resp.text}")
+
     async def fetch_all_liked_tracks(self) -> list[dict]:
         tracks = []
         offset = 0
         limit = 50
 
-        async with httpx.AsyncClient() as client:
-            while True:
-                resp = await client.get(
-                    f"{self._base_url}/me/tracks",
-                    headers=await self._get_headers(),
-                    params={"limit": limit, "offset": offset},
-                )
-                if resp.status_code != 200:
-                    raise Exception(f"Spotify API error: {resp.status_code} {resp.text}")
+        while True:
+            resp = await self._request("GET", "/me/tracks", params={"limit": limit, "offset": offset})
+            if resp.status_code != 200:
+                raise Exception(f"Spotify API error: {resp.status_code} {resp.text}")
 
-                data = resp.json()
-                items = data.get("items", [])
-                if not items:
-                    break
+            data = resp.json()
+            items = data.get("items", [])
+            if not items:
+                break
 
-                for item in items:
-                    track = item.get("track", {})
-                    if track:
-                        tracks.append(track)
+            for item in items:
+                track = item.get("track", {})
+                if track:
+                    tracks.append(track)
 
-                if len(tracks) >= data.get("total", 0):
-                    break
-                offset += limit
+            if len(tracks) >= data.get("total", 0):
+                break
+            offset += limit
 
         return tracks
 
     async def fetch_audio_features(self, track_ids: list[str]) -> dict[str, dict]:
-        features_map = {}
+        features_map: dict[str, dict] = {}
 
-        async with httpx.AsyncClient() as client:
-            for i in range(0, len(track_ids), 100):
-                batch = track_ids[i : i + 100]
-                ids_str = ",".join(batch)
-                resp = await client.get(
-                    f"{self._base_url}/audio-features",
-                    headers=await self._get_headers(),
-                    params={"ids": ids_str},
-                )
-                if resp.status_code == 200:
-                    af_data = resp.json()
-                    for af in af_data.get("audio_features", []):
-                        if af and af.get("id"):
-                            features_map[af["id"]] = af
+        for i in range(0, len(track_ids), 100):
+            batch = track_ids[i : i + 100]
+            resp = await self._request("GET", "/audio-features", params={"ids": ",".join(batch)})
+            if resp.status_code == 200:
+                af_data = resp.json()
+                for af in af_data.get("audio_features", []):
+                    if af and af.get("id"):
+                        features_map[af["id"]] = af
 
         return features_map
 
     async def fetch_artist_genres(self, artist_ids: list[str]) -> dict[str, list[str]]:
         genres_map: dict[str, list[str]] = {}
 
-        async with httpx.AsyncClient() as client:
-            for i in range(0, len(artist_ids), 50):
-                batch = artist_ids[i : i + 50]
-                ids_str = ",".join(batch)
-                resp = await client.get(
-                    f"{self._base_url}/artists",
-                    headers=await self._get_headers(),
-                    params={"ids": ids_str},
-                )
-                if resp.status_code == 200:
-                    artists_data = resp.json()
-                    for artist in artists_data.get("artists", []):
-                        if artist and artist.get("id"):
-                            genres_map[artist["id"]] = artist.get("genres", [])
+        for i in range(0, len(artist_ids), 50):
+            batch = artist_ids[i : i + 50]
+            resp = await self._request("GET", "/artists", params={"ids": ",".join(batch)})
+            if resp.status_code == 200:
+                artists_data = resp.json()
+                for artist in artists_data.get("artists", []):
+                    if artist and artist.get("id"):
+                        genres_map[artist["id"]] = artist.get("genres", [])
 
         return genres_map
 
     async def create_playlist(self, name: str, description: str, public: bool, track_uris: list[str]) -> dict:
-        async with httpx.AsyncClient() as client:
-            user_resp = await client.get(
-                f"{self._base_url}/me",
-                headers=await self._get_headers(),
+        user_resp = await self._request("GET", "/me")
+        if user_resp.status_code != 200:
+            raise Exception("Failed to get user info")
+
+        user_id = user_resp.json()["id"]
+
+        playlist_resp = await self._request(
+            "POST",
+            f"/users/{user_id}/playlists",
+            json={"name": name, "description": description, "public": public},
+        )
+        if playlist_resp.status_code not in (200, 201):
+            raise Exception(f"Failed to create playlist: {playlist_resp.text}")
+
+        playlist = playlist_resp.json()
+        playlist_id = playlist["id"]
+
+        for i in range(0, len(track_uris), 100):
+            batch = track_uris[i : i + 100]
+            await self._request(
+                "POST",
+                f"/playlists/{playlist_id}/tracks",
+                json={"uris": batch},
             )
-            if user_resp.status_code != 200:
-                raise Exception("Failed to get user info")
 
-            user_id = user_resp.json()["id"]
-
-            playlist_resp = await client.post(
-                f"{self._base_url}/users/{user_id}/playlists",
-                headers=await self._get_headers(),
-                json={
-                    "name": name,
-                    "description": description,
-                    "public": public,
-                },
-            )
-            if playlist_resp.status_code not in (200, 201):
-                raise Exception(f"Failed to create playlist: {playlist_resp.text}")
-
-            playlist = playlist_resp.json()
-            playlist_id = playlist["id"]
-
-            for i in range(0, len(track_uris), 100):
-                batch = track_uris[i : i + 100]
-                await client.post(
-                    f"{self._base_url}/playlists/{playlist_id}/tracks",
-                    headers=await self._get_headers(),
-                    json={"uris": batch},
-                )
-
-            return playlist
+        return playlist
 
     async def cache_tracks(self, tracks: list[dict], user_spotify_id: str):
         all_artist_ids = []
