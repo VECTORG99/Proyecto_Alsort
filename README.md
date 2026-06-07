@@ -2,6 +2,11 @@
   <h1>🎵 Alsort</h1>
   <p><strong>Gestor inteligente de playlists de Spotify</strong></p>
   <p>Extrae tus canciones likeadas, aplícales filtros avanzados y crea playlists automáticamente.</p>
+  <p>
+    <a href="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml">
+      <img src="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml/badge.svg" alt="CI">
+    </a>
+  </p>
 </div>
 
 ---
