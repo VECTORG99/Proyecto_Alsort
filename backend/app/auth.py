@@ -50,9 +50,21 @@ async def login():
 
 
 @router.get("/callback")
-async def callback(code: str, state: str, db: AsyncSession = Depends(get_session)):
+async def callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: AsyncSession = Depends(get_session),
+):
     import json
     import httpx
+
+    if error:
+        return RedirectResponse(url=f"{settings.frontend_url}/?error={error}")
+
+    if not code or not state:
+        return RedirectResponse(url=f"{settings.frontend_url}/?error=missing_params")
 
     try:
         state_data = json.loads(base64.urlsafe_b64decode(state + "==").decode())
@@ -132,7 +144,15 @@ async def get_me(request: Request, db: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=401, detail="Invalid session")
 
     if datetime.now(timezone.utc).timestamp() > user.token_expires_at:
-        await refresh_spotify_token(user, db)
+        try:
+            await refresh_spotify_token(user, db)
+        except HTTPException as e:
+            if e.status_code == 401:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Session expired. Please login again.",
+                )
+            raise
 
     return {"id": user.id, "spotify_id": user.spotify_id, "display_name": user.display_name}
 
@@ -141,7 +161,10 @@ async def refresh_spotify_token(user: User, db: AsyncSession):
     import httpx
 
     if not user.refresh_token:
-        raise HTTPException(status_code=401, detail="No refresh token available")
+        raise HTTPException(
+            status_code=401,
+            detail="No refresh token available. Spotify no proporcionó un refresh_token con PKCE. Debes iniciar sesión de nuevo.",
+        )
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -155,7 +178,7 @@ async def refresh_spotify_token(user: User, db: AsyncSession):
         )
 
     if resp.status_code != 200:
-        raise HTTPException(status_code=401, detail="Failed to refresh token")
+        raise HTTPException(status_code=401, detail="Failed to refresh token. Please login again.")
 
     token_data = resp.json()
     user.access_token = token_data["access_token"]

@@ -6,10 +6,20 @@ import type {
 } from '../types'
 
 const API_BASE = 'http://localhost:8000'
+const SESSION_KEY = 'alsort_session_id'
 
 function getSessionId(): string | null {
   const params = new URLSearchParams(window.location.search)
-  return params.get('session')
+  const fromUrl = params.get('session')
+  if (fromUrl) {
+    localStorage.setItem(SESSION_KEY, fromUrl)
+    return fromUrl
+  }
+  return localStorage.getItem(SESSION_KEY)
+}
+
+export function clearSession(): void {
+  localStorage.removeItem(SESSION_KEY)
 }
 
 function headers(): Record<string, string> {

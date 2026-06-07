@@ -34,6 +34,8 @@ async def get_filtered_tracks(
         af = ct.audio_features
         features = json.loads(af) if isinstance(af, str) else af
 
+        features_dict = features or {}
+
         to = TrackOut(
             id=ct.id,
             track_id=ct.track_id,
@@ -46,9 +48,11 @@ async def get_filtered_tracks(
             popularity=ct.popularity,
             genres=ct.genres,
             year=ct.year,
-            instrumentalness=features.get("instrumentalness") if features else None,
-            acousticness=features.get("acousticness") if features else None,
-            tempo=features.get("tempo") if features else None,
+            instrumentalness=features_dict.get("instrumentalness"),
+            acousticness=features_dict.get("acousticness"),
+            tempo=features_dict.get("tempo"),
+            energy=features_dict.get("energy"),
+            danceability=features_dict.get("danceability"),
         )
         track_outs.append(to)
 

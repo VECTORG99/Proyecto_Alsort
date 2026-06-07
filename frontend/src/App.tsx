@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
-import { getMe } from './services/api'
+import { getMe, clearSession } from './services/api'
 import type { UserInfo } from './types'
 
 export default function App() {
@@ -10,14 +10,30 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const session = new URLSearchParams(window.location.search).get('session')
+    const params = new URLSearchParams(window.location.search)
+    const session = params.get('session')
+    const err = params.get('error')
+
+    if (err) {
+      setError('Autorización denegada. Debes aceptar los permisos para usar Alsort.')
+      window.history.replaceState({}, '', '/')
+      setLoading(false)
+      return
+    }
+
     if (session) {
+      localStorage.setItem('alsort_session_id', session)
+      window.history.replaceState({}, '', '/')
+    }
+
+    const stored = localStorage.getItem('alsort_session_id')
+    if (stored) {
       getMe()
-        .then((u) => {
-          setUser(u)
-          window.history.replaceState({}, '', '/')
+        .then((u) => setUser(u))
+        .catch(() => {
+          clearSession()
+          setError('Sesión expirada. Inicia sesión de nuevo.')
         })
-        .catch(() => setError('Sesión inválida. Inicia sesión de nuevo.'))
         .finally(() => setLoading(false))
     } else {
       setLoading(false)

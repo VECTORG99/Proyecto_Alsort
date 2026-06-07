@@ -1,4 +1,3 @@
-import json
 from typing import Any
 
 from .models import FilterCriterion, TrackOut
@@ -26,19 +25,14 @@ def _get_track_value(track: TrackOut, filter_type: str) -> Any:
     elif filter_type == "tempo":
         return track.tempo
     elif filter_type == "workout":
-        energy = track.instrumentalness
-        tempo = track.tempo
-        danceability = 0.0
-        if hasattr(track, "audio_features") and track.audio_features:
-            af = json.loads(track.audio_features) if isinstance(track.audio_features, str) else track.audio_features
-            energy = af.get("energy", 0)
-            danceability = af.get("danceability", 0)
-            tempo = af.get("tempo", 0)
-        else:
-            pass
-        return (energy is not None and tempo is not None and
-                energy is not None and
-                energy > 0.7 and tempo > 120 and danceability > 0.6)
+        return bool(
+            track.energy is not None
+            and track.tempo is not None
+            and track.danceability is not None
+            and track.energy > 0.7
+            and track.tempo > 120
+            and track.danceability > 0.6
+        )
     return None
 
 
