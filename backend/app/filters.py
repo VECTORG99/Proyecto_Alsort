@@ -1,6 +1,27 @@
-from typing import Any
+from typing import Any, Literal
 
 from .models import FilterCriterion, TrackOut
+
+SORT_FIELDS = {"year", "popularity", "duration_ms", "tempo", "energy", "danceability", "track_name", "artists"}
+
+
+def sort_tracks(
+    tracks: list[TrackOut],
+    sort_by: str | None,
+    sort_order: Literal["asc", "desc"],
+) -> list[TrackOut]:
+    if sort_by not in SORT_FIELDS:
+        return tracks
+
+    reverse = sort_order == "desc"
+
+    def key_fn(t: TrackOut) -> Any:
+        v = getattr(t, sort_by, None)
+        if v is None:
+            return "" if isinstance(getattr(t, sort_by, None), str) else -1
+        return v
+
+    return sorted(tracks, key=key_fn, reverse=reverse)
 
 
 def _get_track_value(track: TrackOut, filter_type: str) -> Any:
@@ -61,32 +82,43 @@ def _apply_operator(value: Any, operator: str, target: Any) -> bool:
     return False
 
 
-def apply_filters(tracks: list[TrackOut], and_filters: list[FilterCriterion], or_filters: list[FilterCriterion]) -> list[TrackOut]:
-    if not and_filters and not or_filters:
+def apply_filters(
+    tracks: list[TrackOut],
+    and_filters: list[FilterCriterion],
+    or_filters: list[FilterCriterion],
+    sort_by: str | None = None,
+    sort_order: Literal["asc", "desc"] = "desc",
+) -> list[TrackOut]:
+    if not and_filters and not or_filters and not sort_by:
         return tracks
 
-    result = []
-    for track in tracks:
-        and_pass = True
-        or_pass = False
+    result = tracks
+    if and_filters or or_filters:
+        result = []
+        for track in tracks:
+            and_pass = True
+            or_pass = False
 
-        if and_filters:
-            for criterion in and_filters:
-                value = _get_track_value(track, criterion.type)
-                if not _apply_operator(value, criterion.operator, criterion.value):
-                    and_pass = False
-                    break
+            if and_filters:
+                for criterion in and_filters:
+                    value = _get_track_value(track, criterion.type)
+                    if not _apply_operator(value, criterion.operator, criterion.value):
+                        and_pass = False
+                        break
 
-        if or_filters:
-            for criterion in or_filters:
-                value = _get_track_value(track, criterion.type)
-                if _apply_operator(value, criterion.operator, criterion.value):
-                    or_pass = True
-                    break
-        else:
-            or_pass = True
+            if or_filters:
+                for criterion in or_filters:
+                    value = _get_track_value(track, criterion.type)
+                    if _apply_operator(value, criterion.operator, criterion.value):
+                        or_pass = True
+                        break
+            else:
+                or_pass = True
 
-        if and_pass and or_pass:
-            result.append(track)
+            if and_pass and or_pass:
+                result.append(track)
+
+    if sort_by:
+        result = sort_tracks(result, sort_by, sort_order)
 
     return result

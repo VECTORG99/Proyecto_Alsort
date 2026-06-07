@@ -1,4 +1,6 @@
-import type { Track } from '../types'
+import { useState, useMemo } from 'react'
+import type { Track, SortField, SortOrder } from '../types'
+import { SORT_OPTIONS } from '../types'
 import { useLoading } from '../context/LoadingContext'
 
 interface SongListProps {
@@ -7,8 +9,11 @@ interface SongListProps {
   page: number
   pageSize: number
   pageSizes: number[]
+  sortBy: SortField | null
+  sortOrder: SortOrder
   onPageChange: (page: number) => void
   onPageSizeChange: (pageSize: number) => void
+  onSortChange: (sortBy: SortField | null, sortOrder: SortOrder) => void
 }
 
 function formatDuration(ms: number): string {
@@ -17,14 +22,55 @@ function formatDuration(ms: number): string {
   return `${min}:${sec.toString().padStart(2, '0')}`
 }
 
-export default function SongList({ tracks, total, page, pageSize, pageSizes, onPageChange, onPageSizeChange }: SongListProps) {
+function SkeletonCard() {
+  return (
+    <div className="song-card skeleton">
+      <div className="skeleton-art" />
+      <div className="song-info">
+        <div className="skeleton-line w60" />
+        <div className="skeleton-line w40" />
+        <div className="skeleton-line w30" />
+      </div>
+      <div className="song-stats">
+        <div className="skeleton-line w20" />
+        <div className="skeleton-line w20" />
+      </div>
+    </div>
+  )
+}
+
+export default function SongList({
+  tracks, total, page, pageSize, pageSizes,
+  sortBy, sortOrder,
+  onPageChange, onPageSizeChange, onSortChange,
+}: SongListProps) {
   const { isLoading } = useLoading()
+  const [search, setSearch] = useState('')
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const from = total === 0 ? 0 : page * pageSize + 1
   const to = Math.min((page + 1) * pageSize, total)
 
+  const filteredTracks = useMemo(() => {
+    if (!search.trim()) return tracks
+    const q = search.toLowerCase()
+    return tracks.filter(
+      (t) =>
+        t.track_name.toLowerCase().includes(q) ||
+        t.artists.toLowerCase().includes(q) ||
+        t.album.toLowerCase().includes(q),
+    )
+  }, [tracks, search])
+
   if (isLoading) {
-    return <div className="songlist-loading">Cargando canciones...</div>
+    return (
+      <div className="songlist">
+        <div className="songlist-header"><h2>Cargando...</h2></div>
+        <div className="songlist-grid">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      </div>
+    )
   }
 
   if (tracks.length === 0) {
@@ -35,9 +81,45 @@ export default function SongList({ tracks, total, page, pageSize, pageSizes, onP
     <div className="songlist">
       <div className="songlist-header">
         <h2>Resultados ({total} canciones)</h2>
+        <div className="songlist-toolbar">
+          <input
+            className="search-input"
+            type="text"
+            placeholder="Buscar en resultados..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="sort-select"
+            value={sortBy ?? ''}
+            onChange={(e) => {
+              const val = e.target.value as SortField | ''
+              onSortChange(val || null, sortOrder)
+            }}
+          >
+            <option value="">Sin orden</option>
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {sortBy && (
+            <button
+              className="btn-sort-order"
+              onClick={() => onSortChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
+              title={sortOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          )}
+        </div>
       </div>
+
+      {filteredTracks.length === 0 && search && (
+        <div className="songlist-empty">Sin resultados para "{search}"</div>
+      )}
+
       <div className="songlist-grid">
-        {tracks.map((track) => (
+        {filteredTracks.map((track) => (
           <div key={track.id} className="song-card">
             {track.album_image_url && (
               <img
@@ -63,13 +145,13 @@ export default function SongList({ tracks, total, page, pageSize, pageSizes, onP
                   <span className="stat-value">{track.popularity}%</span>
                 </div>
               )}
-              {track.instrumentalness !== null && track.instrumentalness !== undefined && (
+              {track.instrumentalness !== null && (
                 <div className="stat" title="Instrumentalidad">
                   <span className="stat-label">Inst</span>
                   <span className="stat-value">{(track.instrumentalness * 100).toFixed(0)}%</span>
                 </div>
               )}
-              {track.acousticness !== null && track.acousticness !== undefined && (
+              {track.acousticness !== null && (
                 <div className="stat" title="Acousticidad">
                   <span className="stat-label">Acou</span>
                   <span className="stat-value">{(track.acousticness * 100).toFixed(0)}%</span>
@@ -98,17 +180,13 @@ export default function SongList({ tracks, total, page, pageSize, pageSizes, onP
             className="btn-page"
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 0}
-          >
-            ‹ Anterior
-          </button>
+          >‹ Anterior</button>
           <span className="page-indicator">{page + 1} de {totalPages}</span>
           <button
             className="btn-page"
             onClick={() => onPageChange(page + 1)}
             disabled={page + 1 >= totalPages}
-          >
-            Siguiente ›
-          </button>
+          >Siguiente ›</button>
         </div>
       </div>
     </div>

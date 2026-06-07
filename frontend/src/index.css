@@ -359,9 +359,45 @@ textarea { resize: vertical; font-family: inherit; }
 }
 
 /* SONG LIST */
-.songlist-header { margin-bottom: 16px; }
+.songlist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
 
 .songlist-header h2 { font-size: 1.1rem; }
+
+.songlist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-input {
+  width: 220px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.sort-select {
+  width: auto;
+  min-width: 120px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.btn-sort-order {
+  background: var(--surface2);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  border-radius: var(--radius);
+}
+
+.btn-sort-order:hover { background: #333; }
 
 .songlist-loading, .songlist-empty {
   display: flex;
@@ -444,4 +480,88 @@ textarea { resize: vertical; font-family: inherit; }
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--primary);
+}
+
+/* SKELETON LOADING */
+.skeleton {
+  pointer-events: none;
+}
+
+.skeleton-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface2) 25%, #333 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface2) 25%, #333 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+
+.skeleton-line:last-child { margin-bottom: 0; }
+
+.w60 { width: 60%; }
+.w40 { width: 40%; }
+.w30 { width: 30%; }
+.w20 { width: 20%; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* TOAST */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 400px;
+}
+
+.toast {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  animation: toastIn 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.toast-success {
+  background: var(--success);
+  color: #fff;
+}
+
+.toast-error {
+  background: var(--error);
+  color: #fff;
+}
+
+.toast-info {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }

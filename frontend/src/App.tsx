@@ -3,6 +3,7 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import { getMe, clearSession } from './services/api'
 import { LoadingProvider } from './context/LoadingContext'
+import { ToastProvider } from './context/ToastContext'
 import type { UserInfo } from './types'
 
 export default function App() {
@@ -51,7 +52,9 @@ export default function App() {
 
   return (
     <LoadingProvider>
-      {!user ? <Login /> : <Dashboard user={user} />}
+      <ToastProvider>
+        {!user ? <Login /> : <Dashboard user={user} />}
+      </ToastProvider>
     </LoadingProvider>
   )
 }

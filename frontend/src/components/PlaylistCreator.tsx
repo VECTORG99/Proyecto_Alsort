@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPlaylist } from '../services/api'
 import { useLoading } from '../context/LoadingContext'
+import { useToast } from '../context/ToastContext'
 import type { FilterRequest } from '../types'
 
 interface PlaylistCreatorProps {
@@ -10,10 +11,10 @@ interface PlaylistCreatorProps {
 
 export default function PlaylistCreator({ filterRequest, totalTracks }: PlaylistCreatorProps) {
   const { startLoading, stopLoading, isLoading } = useLoading()
+  const { addToast } = useToast()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [public_, setPublic_] = useState(true)
-  const [result, setResult] = useState<{ msg: string; truncated: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const displayTotal = totalTracks > 10000 ? `${totalTracks} (máx. 10.000)` : totalTracks
@@ -30,7 +31,6 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
 
     startLoading('Creando playlist en Spotify...')
     setError(null)
-    setResult(null)
 
     try {
       const res = await createPlaylist({
@@ -40,11 +40,11 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
         filter_criteria: filterRequest,
       })
       const truncated = res.truncated ?? false
-      let msg = `Playlist "${res.name}" creada exitosamente en tu cuenta de Spotify.`
+      let msg = `Playlist "${res.name}" creada.`
       if (truncated) {
-        msg += ` Se agregaron ${res.total_added} de ${res.total_matched} canciones (límite de 10.000 de Spotify).`
+        msg += ` Se agregaron ${res.total_added} de ${res.total_matched} canciones (límite 10.000).`
       }
-      setResult({ msg, truncated })
+      addToast(msg, truncated ? 'info' : 'success')
       setName('')
       setDescription('')
     } catch (e) {
@@ -57,9 +57,6 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
   return (
     <div className="playlist-creator">
       <h3>Crear Playlist</h3>
-      {result && (
-        <div className={`success-msg${result.truncated ? ' warning' : ''}`}>{result.msg}</div>
-      )}
       {error && <div className="error-msg">{error}</div>}
       <div className="form-group">
         <label>Nombre de la playlist</label>

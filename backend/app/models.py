@@ -48,6 +48,8 @@ class FilterRequest(BaseModel):
     or_filters: list[FilterCriterion] = []
     limit: int = 50
     offset: int = 0
+    sort_by: Literal["year", "popularity", "duration_ms", "tempo", "energy", "danceability", "track_name", "artists"] | None = None
+    sort_order: Literal["asc", "desc"] = "desc"
 
 
 class TrackOut(BaseModel):

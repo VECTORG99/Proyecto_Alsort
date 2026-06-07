@@ -31,12 +31,28 @@ export type FilterOperator =
 
 export type FilterValue = string | number | boolean | [number, number]
 
+export type SortField = 'year' | 'popularity' | 'duration_ms' | 'tempo' | 'energy' | 'danceability' | 'track_name' | 'artists'
+export type SortOrder = 'asc' | 'desc'
+
 export interface FilterRequest {
   and_filters: FilterCriterion[]
   or_filters: FilterCriterion[]
   limit: number
   offset: number
+  sort_by?: SortField | null
+  sort_order?: SortOrder
 }
+
+export const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'popularity', label: 'Popularidad' },
+  { value: 'year', label: 'Año' },
+  { value: 'tempo', label: 'Tempo (BPM)' },
+  { value: 'duration_ms', label: 'Duración' },
+  { value: 'energy', label: 'Energía' },
+  { value: 'danceability', label: 'Danceability' },
+  { value: 'track_name', label: 'Nombre' },
+  { value: 'artists', label: 'Artista' },
+]
 
 export interface FilterResponse {
   tracks: Track[]

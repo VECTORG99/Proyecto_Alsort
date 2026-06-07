@@ -59,7 +59,7 @@ async def get_filtered_tracks(
         )
         track_outs.append(to)
 
-    filtered = apply_filters(track_outs, filter_req.and_filters, filter_req.or_filters)
+    filtered = apply_filters(track_outs, filter_req.and_filters, filter_req.or_filters, filter_req.sort_by, filter_req.sort_order)
 
     total = len(filtered)
     offset = filter_req.offset

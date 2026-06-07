@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { UserInfo, Track, FilterCriterion, FilterRequest } from '../types'
+import type { UserInfo, Track, FilterCriterion, FilterRequest, SortField, SortOrder } from '../types'
 import { syncTracks, filterTracks } from '../services/api'
 import { useLoading } from '../context/LoadingContext'
+import { useToast } from '../context/ToastContext'
 import FilterPanel from './FilterPanel'
 import SongList from './SongList'
 import PlaylistCreator from './PlaylistCreator'
@@ -14,11 +15,13 @@ interface DashboardProps {
 
 export default function Dashboard({ user }: DashboardProps) {
   const { startLoading, stopLoading } = useLoading()
+  const { addToast } = useToast()
   const [tracks, setTracks] = useState<Track[]>([])
   const [total, setTotal] = useState(0)
-  const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(100)
   const [page, setPage] = useState(0)
+  const [sortBy, setSortBy] = useState<SortField | null>(null)
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const currentFilters = useRef<{ and: FilterCriterion[]; or: FilterCriterion[] }>({ and: [], or: [] })
 
   const fetchFiltered = useCallback(async (
@@ -26,10 +29,14 @@ export default function Dashboard({ user }: DashboardProps) {
     orFilters: FilterCriterion[],
     newPage?: number,
     newPageSize?: number,
+    newSortBy?: SortField | null,
+    newSortOrder?: SortOrder,
   ) => {
     startLoading('Filtrando canciones...')
     const size = newPageSize ?? pageSize
     const pg = newPage ?? 0
+    const sb = newSortBy !== undefined ? newSortBy : sortBy
+    const so = newSortOrder !== undefined ? newSortOrder : sortOrder
     currentFilters.current = { and: andFilters, or: orFilters }
     try {
       const req: FilterRequest = {
@@ -37,6 +44,8 @@ export default function Dashboard({ user }: DashboardProps) {
         or_filters: orFilters,
         limit: size,
         offset: pg * size,
+        sort_by: sb,
+        sort_order: so,
       }
       const res = await filterTracks(req)
       setTracks(res.tracks)
@@ -47,24 +56,21 @@ export default function Dashboard({ user }: DashboardProps) {
     } finally {
       stopLoading()
     }
-  }, [startLoading, stopLoading, pageSize])
+  }, [startLoading, stopLoading, pageSize, sortBy, sortOrder])
 
   function goToPage(newPage: number) {
-    fetchFiltered(
-      currentFilters.current.and,
-      currentFilters.current.or,
-      newPage,
-    )
+    fetchFiltered(currentFilters.current.and, currentFilters.current.or, newPage)
   }
 
   function changePageSize(newSize: number) {
     setPageSize(newSize)
-    fetchFiltered(
-      currentFilters.current.and,
-      currentFilters.current.or,
-      0,
-      newSize,
-    )
+    fetchFiltered(currentFilters.current.and, currentFilters.current.or, 0, newSize)
+  }
+
+  function handleSortChange(newSortBy: SortField | null, newSortOrder: SortOrder) {
+    setSortBy(newSortBy)
+    setSortOrder(newSortOrder)
+    fetchFiltered(currentFilters.current.and, currentFilters.current.or, 0, pageSize, newSortBy, newSortOrder)
   }
 
   useEffect(() => {
@@ -73,13 +79,12 @@ export default function Dashboard({ user }: DashboardProps) {
 
   async function handleSync() {
     startLoading('Sincronizando canciones de Spotify...')
-    setSyncMsg(null)
     try {
       const res = await syncTracks()
-      setSyncMsg(`${res.synced} canciones sincronizadas`)
-      fetchFiltered([], [])
+      addToast(`${res.synced} canciones sincronizadas`, 'success')
+      fetchFiltered([], [], 0, pageSize, sortBy, sortOrder)
     } catch (e) {
-      setSyncMsg('Error al sincronizar')
+      addToast('Error al sincronizar', 'error')
     } finally {
       stopLoading()
     }
@@ -93,7 +98,6 @@ export default function Dashboard({ user }: DashboardProps) {
           <span className="user-info">{user.display_name || user.spotify_id}</span>
         </div>
         <div className="header-right">
-          {syncMsg && <span className="sync-msg">{syncMsg}</span>}
           <button className="btn-sync" onClick={handleSync}>
             Sincronizar likes
           </button>
@@ -102,7 +106,7 @@ export default function Dashboard({ user }: DashboardProps) {
 
       <div className="dashboard-content">
         <aside className="sidebar">
-          <FilterPanel onApply={(andF, orF) => fetchFiltered(andF, orF, 0)} />
+          <FilterPanel onApply={(andF, orF) => fetchFiltered(andF, orF, 0, pageSize, null, sortOrder)} />
           <PlaylistCreator
             filterRequest={{
               and_filters: currentFilters.current.and,
@@ -120,8 +124,11 @@ export default function Dashboard({ user }: DashboardProps) {
             page={page}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
             onPageChange={goToPage}
             onPageSizeChange={changePageSize}
+            onSortChange={handleSortChange}
           />
         </main>
       </div>

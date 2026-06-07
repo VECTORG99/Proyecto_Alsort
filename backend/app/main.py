@@ -36,6 +36,11 @@ app.add_middleware(
 app.include_router(auth_router)
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "alsort-api"}
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info("Request %s %s", request.method, request.url.path)
