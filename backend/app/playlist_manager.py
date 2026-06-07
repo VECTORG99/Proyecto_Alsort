@@ -47,7 +47,7 @@ async def get_filtered_tracks(
             album=ct.album,
             album_image_url=ct.album_image_url,
             duration_ms=ct.duration_ms,
-            explicit=bool(ct.explicit),
+            explicit=ct.explicit,
             popularity=ct.popularity,
             genres=ct.genres,
             year=ct.year,

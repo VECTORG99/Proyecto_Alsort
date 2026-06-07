@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Float, Integer, Text, JSON, DateTime
+from sqlalchemy import String, Float, Integer, Text, JSON, DateTime, Boolean
 from datetime import datetime, timezone
 import uuid
 
@@ -39,7 +39,7 @@ class CachedTrack(Base):
     album_id: Mapped[str] = mapped_column(String(64))
     album_image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     duration_ms: Mapped[int] = mapped_column(Integer)
-    explicit: Mapped[bool] = mapped_column(Integer)
+    explicit: Mapped[bool] = mapped_column(Boolean)
     popularity: Mapped[int] = mapped_column(Integer)
     track_url: Mapped[str] = mapped_column(String(512))
     genres: Mapped[str | None] = mapped_column(Text, nullable=True)
