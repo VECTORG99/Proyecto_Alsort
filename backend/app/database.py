@@ -6,12 +6,11 @@ from alembic.config import Config
 from alembic import command
 import uuid
 import os
-from urllib.parse import urlparse
 
 from .config import settings
 
-_db_path = urlparse(settings.database_url).path
-_db_dir = os.path.dirname(_db_path)
+_db_file = settings.database_url.replace("sqlite+aiosqlite:///", "")
+_db_dir = os.path.dirname(_db_file)
 if _db_dir and not os.path.exists(_db_dir):
     os.makedirs(_db_dir, exist_ok=True)
 
