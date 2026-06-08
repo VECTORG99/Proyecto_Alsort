@@ -6,7 +6,7 @@
   <a href="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml">
     <img src="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/tests-45%2B-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-57-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/python-3.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/node-20-blue" alt="Node">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -263,13 +263,13 @@ Alembic con `async_engine_from_config`. La migración inicial (`4dc010d98fab`) c
 <p align="center">
   <img src="https://img.shields.io/badge/estado-aprobado-success" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-≥85%25-success" alt="Coverage">
-  <img src="https://img.shields.io/badge/unitarios-22-blue" alt="Unit">
-  <img src="https://img.shields.io/badge/modelo-15-blue" alt="Model">
-  <img src="https://img.shields.io/badge/integración-8-blue" alt="Integration">
+  <img src="https://img.shields.io/badge/unitarios-26-blue" alt="Unit">
+  <img src="https://img.shields.io/badge/modelo-24-blue" alt="Model">
+  <img src="https://img.shields.io/badge/integración-7-blue" alt="Integration">
   <img src="https://img.shields.io/badge/frontend-tsc%2Bbuild-blue" alt="Frontend">
 </p>
 
-### Backend (45+ tests)
+### Backend (57 tests)
 
 Los tests **no requieren conexión a Spotify**. Usan `TestClient` de FastAPI con datos mock.
 
@@ -283,9 +283,9 @@ make coverage-report           # abre backend/coverage_html/index.html
 
 | Archivo | Tests | Cobertura | Lo que cubre |
 |---------|-------|-----------|-------------|
-| `test_filters.py` | 22 | ~100% | Cada tipo de filtro individual, operadores `=` `>` `<` `>=` `<=` `between` `contains`, combinaciones AND/OR, bordes (None, vacío), workout, sort |
-| `test_models.py` | 15 | ~100% | Validación de rangos: `year` (1900-2030), `popularity` (0-100), `instrumentalness`/`acousticness` (0.0-1.0), `tempo` (0-300), valores válidos e inválidos |
-| `test_api.py` | 8 | ~90% | Auth sin sesión retorna 401, login redirige a Spotify, get_me sin auth 401, endpoints protegidos, validación de requests (nombre vacío, criteria faltante) |
+| `test_filters.py` | 26 | ~100% | Cada tipo de filtro individual, operadores `=` `>` `<` `>=` `<=` `between` `contains`, combinaciones AND/OR, bordes (None, vacío), workout, sort |
+| `test_models.py` | 24 | ~100% | Validación de rangos: `year` (1900-2030), `popularity` (0-100), `instrumentalness`/`acousticness` (0.0-1.0), `tempo` (0-300), valores válidos e inválidos |
+| `test_api.py` | 7 | ~90% | Auth sin sesión retorna 401, login redirige a Spotify, get_me sin auth 401, endpoints protegidos, validación de requests (nombre vacío, criteria faltante) |
 
 **Fixtures:** 5 tracks de ejemplo (rock, folk, workout, jazz, pop) con valores realistas que cubren todo el espectro de cada campo.
 
@@ -355,6 +355,19 @@ Los badges de estado se actualizan automáticamente con cada ejecución.
 6. Usa la **búsqueda local** para filtrar dentro de los resultados actuales
 7. Una vez satisfecho, completa el formulario **Crear Playlist** y haz clic en el botón
 8. La playlist aparece automáticamente en tu cuenta de Spotify
+
+---
+
+## Seguridad y Estabilidad (QA)
+
+- **Seguridad contra CSRF**: Validación estricta del parámetro `state` mediante cookies HTTP-only temporales (`max_age=300`) y verificación segura usando `hmac.compare_digest` para evitar ataques de falsificación de peticiones en sitios cruzados durante el login.
+- **Prevención de Fugas de Memoria y Conexiones**: Gestión limpia de clientes HTTP mediante el uso garantizado de bloques `try/finally` asegurando el cierre asíncrono (`aclose()`) de las instancias `httpx.AsyncClient` creadas para interactuar con la API de Spotify.
+- **Control de Concurrencia**: Uso de bloqueos de tipo `asyncio.Lock` en el refresco de tokens por usuario de Spotify para prevenir múltiples renovaciones de credenciales simultáneas y race conditions.
+- **Robustez en SQLite**: Capping de consultas en lote a un máximo de 900 variables en la cláusula `IN` de SQLite para evitar el límite máximo de variables permitido por el motor base.
+- **Consistencia en la UI**:
+  - Implementación de `AbortController` en peticiones Fetch del frontend para cancelar peticiones previas en curso si se realizan filtros o paginación rápidamente.
+  - Límite de notificaciones push concurrentes (*toasts*) a un máximo de 5 para mejorar la visualización y evitar consumo excesivo de timers.
+- **Interfaz Responsiva**: Inclusión de reglas responsivas y *media queries* nativas en CSS para adaptar la interfaz web perfectamente a tablets y teléfonos móviles.
 
 ---
 

@@ -5,7 +5,7 @@
 - **Frontend**: React 18, TypeScript 5.6, Vite 6
 - **Auth**: OAuth PKCE con Spotify (sin client_secret en el flujo)
 - **Infra**: Docker Compose (nginx → backend), GitHub Actions CI
-- **Testing**: pytest (asyncio_mode=auto), 45+ tests
+- **Testing**: pytest (asyncio_mode=auto), 57 tests
 
 ## Convenciones de Código
 - `async def` en toda la app (httpx + SQLAlchemy async)
@@ -67,7 +67,7 @@ Create: filter → Spotify /me/playlists → /playlists/{id}/tracks → response
 ```bash
 make dev-backend        # uvicorn :8000
 make dev-frontend       # vite :5173
-make test-backend       # pytest -v (45+ tests)
+make test-backend       # pytest -v (57 tests)
 make test-frontend      # tsc --noEmit + vite build
 make docker-up          # docker compose up --build
 make lint-backend       # ruff check .
@@ -75,9 +75,9 @@ make clean              # rm -rf dist/ __pycache__/ .pytest_cache
 ```
 
 ## Tests
-- `test_filters.py`: 22 tests — cada tipo de filtro, combinaciones AND/OR, bordes
-- `test_models.py`: 15 tests — validación rangos (year, popularity, instrumentalness, acousticness, tempo)
-- `test_api.py`: 8 tests — auth, endpoints protegidos, validación requests
+- `test_filters.py`: 26 tests — cada tipo de filtro, combinaciones AND/OR, bordes
+- `test_models.py`: 24 tests — validación rangos (year, popularity, instrumentalness, acousticness, tempo)
+- `test_api.py`: 7 tests — auth, endpoints protegidos, validación requests
 - Fixtures: 5 tracks mock (rock, folk, workout, jazz, pop) con `track_id` bare (sin `spotify:track:` prefijo)
 
 ## Bugs Conocidos (fixeados)
