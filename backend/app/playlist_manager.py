@@ -1,12 +1,13 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from .database import User, CachedTrack
-from .spotify_client import SpotifyClient
-from .models import FilterRequest, FilterCriterion, TrackOut
-from .filters import apply_filters, _get_track_value, _apply_operator
-from .logger import logger
 import json
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from .database import CachedTrack, User
+from .filters import apply_filters
+from .logger import logger
+from .models import FilterRequest, TrackOut
+from .spotify_client import SpotifyClient
 
 
 async def get_filtered_tracks(
@@ -24,8 +25,11 @@ async def get_filtered_tracks(
     if not cached_tracks:
         logger.info("No cached tracks found for user=%s, fetching from Spotify", user.spotify_id)
         client = SpotifyClient(user, db)
-        tracks_data = await client.fetch_all_liked_tracks()
-        await client.cache_tracks(tracks_data, user.spotify_id)
+        try:
+            tracks_data = await client.fetch_all_liked_tracks()
+            await client.cache_tracks(tracks_data, user.spotify_id)
+        finally:
+            await client.close()
 
         result = await db.execute(
             select(CachedTrack).where(CachedTrack.spotify_user_id == user.spotify_id)
@@ -59,7 +63,10 @@ async def get_filtered_tracks(
         )
         track_outs.append(to)
 
-    filtered = apply_filters(track_outs, filter_req.and_filters, filter_req.or_filters, filter_req.sort_by, filter_req.sort_order)
+    filtered = apply_filters(
+        track_outs, filter_req.and_filters, filter_req.or_filters,
+        filter_req.sort_by, filter_req.sort_order,
+    )
 
     total = len(filtered)
     offset = filter_req.offset
@@ -102,8 +109,11 @@ async def create_playlist_from_filters(
         logger.warning("Truncating playlist from %d to %d tracks", total_matched, SPOTIFY_PLAYLIST_MAX)
 
     client = SpotifyClient(user, db)
-    track_uris = [f"spotify:track:{t.track_id}" for t in filtered_tracks[:SPOTIFY_PLAYLIST_MAX]]
-    playlist = await client.create_playlist(name, description, public, track_uris)
+    try:
+        track_uris = [f"spotify:track:{t.track_id}" for t in filtered_tracks[:SPOTIFY_PLAYLIST_MAX]]
+        playlist = await client.create_playlist(name, description, public, track_uris)
+    finally:
+        await client.close()
 
     return {
         "playlist": playlist,

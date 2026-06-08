@@ -54,7 +54,7 @@ def _get_track_value(track: TrackOut, filter_type: str) -> Any:
             and track.tempo > 120
             and track.danceability > 0.6
         )
-    return None
+    raise ValueError(f"Unknown filter type: {filter_type}")
 
 
 def _apply_operator(value: Any, operator: str, target: Any) -> bool:
@@ -65,20 +65,36 @@ def _apply_operator(value: Any, operator: str, target: Any) -> bool:
         if isinstance(value, str):
             return value == str(target).lower()
         return value == target
-    elif operator == ">":
-        return isinstance(value, (int, float)) and value > float(target)
-    elif operator == "<":
-        return isinstance(value, (int, float)) and value < float(target)
-    elif operator == ">=":
-        return isinstance(value, (int, float)) and value >= float(target)
-    elif operator == "<=":
-        return isinstance(value, (int, float)) and value <= float(target)
+    elif operator in (">", "<", ">=", "<="):
+        if not isinstance(value, (int, float)):
+            return False
+        if not isinstance(target, (int, float)):
+            try:
+                target_num = float(target)
+            except (TypeError, ValueError):
+                return False
+        else:
+            target_num = target
+        if operator == ">":
+            return value > target_num
+        elif operator == "<":
+            return value < target_num
+        elif operator == ">=":
+            return value >= target_num
+        elif operator == "<=":
+            return value <= target_num
     elif operator == "between":
-        if isinstance(target, list) and len(target) == 2:
-            return isinstance(value, (int, float)) and float(target[0]) <= value <= float(target[1])
-        return False
+        if not isinstance(value, (int, float)):
+            return False
+        if not isinstance(target, list) or len(target) != 2:
+            return False
+        try:
+            lo, hi = float(target[0]), float(target[1])
+        except (TypeError, ValueError):
+            return False
+        return lo <= value <= hi
     elif operator == "contains":
-        return isinstance(value, str) and str(target).lower() in value
+        return isinstance(value, str) and isinstance(target, str) and target.lower() in value
     return False
 
 

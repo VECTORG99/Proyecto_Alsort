@@ -4,9 +4,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from fastapi.testclient import TestClient
 from app.main import app
 from app.models import TrackOut
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

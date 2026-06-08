@@ -549,3 +549,138 @@ textarea { resize: vertical; font-family: inherit; }
     transform: translateX(0);
   }
 }
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 320px;
+    min-width: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 64px);
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: 1px solid #222;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+
+  .filter-row {
+    flex-wrap: wrap;
+  }
+
+  .filter-row select,
+  .filter-row select:first-child,
+  .filter-row select:nth-child(2) {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .login-card {
+    padding: 24px;
+    margin: 16px;
+  }
+
+  .login-card h1 {
+    font-size: 2rem;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .header-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .header-right {
+    width: 100%;
+  }
+
+  .header-right .btn-sync {
+    width: 100%;
+  }
+
+  .songlist-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .songlist-toolbar {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .sort-select {
+    flex: 1;
+    min-width: unset;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pagination-info {
+    text-align: center;
+  }
+
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: unset;
+  }
+
+  .song-album-art {
+    width: 40px;
+    height: 40px;
+  }
+
+  .song-stats {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: unset;
+  }
+
+  .stat-label {
+    display: inline;
+    font-size: 0.7rem;
+  }
+
+  .stat-value {
+    display: inline;
+    font-size: 0.8rem;
+  }
+
+  .song-name {
+    font-size: 0.85rem;
+  }
+
+  .song-artist {
+    font-size: 0.8rem;
+  }
+}

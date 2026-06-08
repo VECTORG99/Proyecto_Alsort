@@ -39,10 +39,13 @@ export default function PlaylistCreator({ filterRequest, totalTracks }: Playlist
         public: public_,
         filter_criteria: filterRequest,
       })
-      const truncated = res.truncated ?? false
-      let msg = `Playlist "${res.name}" creada.`
+      const truncated = res?.truncated ?? false
+      const playlistName = res?.name ?? name.trim()
+      let msg = `Playlist "${playlistName}" creada.`
       if (truncated) {
-        msg += ` Se agregaron ${res.total_added} de ${res.total_matched} canciones (límite 10.000).`
+        const totalAdded = res?.total_added ?? 0
+        const totalMatched = res?.total_matched ?? 0
+        msg += ` Se agregaron ${totalAdded} de ${totalMatched} canciones (límite 10.000).`
       }
       addToast(msg, truncated ? 'info' : 'success')
       setName('')

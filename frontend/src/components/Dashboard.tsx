@@ -23,6 +23,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [sortBy, setSortBy] = useState<SortField | null>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const currentFilters = useRef<{ and: FilterCriterion[]; or: FilterCriterion[] }>({ and: [], or: [] })
+  const abortRef = useRef<AbortController | null>(null)
 
   const fetchFiltered = useCallback(async (
     andFilters: FilterCriterion[],
@@ -31,7 +32,13 @@ export default function Dashboard({ user }: DashboardProps) {
     newPageSize?: number,
     newSortBy?: SortField | null,
     newSortOrder?: SortOrder,
+    signal?: AbortSignal,
   ) => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const combinedSignal = signal ? anySignal([signal, controller.signal]) : controller.signal
+
     startLoading('Filtrando canciones...')
     const size = newPageSize ?? pageSize
     const pg = newPage ?? 0
@@ -47,17 +54,31 @@ export default function Dashboard({ user }: DashboardProps) {
         sort_by: sb,
         sort_order: so,
       }
-      const res = await filterTracks(req)
+      const res = await filterTracks(req, combinedSignal)
+      if (combinedSignal.aborted) return
       setTracks(res.tracks)
       setTotal(res.total)
       setPage(pg)
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
       console.error('Filter error:', e)
       addToast('Error al filtrar canciones', 'error')
     } finally {
       stopLoading()
     }
   }, [startLoading, stopLoading, pageSize, sortBy, sortOrder])
+
+  function anySignal(signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController()
+    for (const signal of signals) {
+      if (signal.aborted) {
+        controller.abort(signal.reason)
+        return controller.signal
+      }
+      signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
+    }
+    return controller.signal
+  }
 
   function goToPage(newPage: number) {
     fetchFiltered(currentFilters.current.and, currentFilters.current.or, newPage)
@@ -75,7 +96,9 @@ export default function Dashboard({ user }: DashboardProps) {
   }
 
   useEffect(() => {
-    fetchFiltered([], [], 0, pageSize)
+    const controller = new AbortController()
+    fetchFiltered([], [], 0, pageSize, undefined, undefined, controller.signal)
+    return () => controller.abort()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSync() {
@@ -107,7 +130,10 @@ export default function Dashboard({ user }: DashboardProps) {
 
       <div className="dashboard-content">
         <aside className="sidebar">
-          <FilterPanel onApply={(andF, orF) => fetchFiltered(andF, orF, 0, pageSize, null, sortOrder)} />
+          <FilterPanel onApply={(andF, orF) => {
+            setSortBy(null)
+            fetchFiltered(andF, orF, 0, pageSize, null, sortOrder)
+          }} />
           <PlaylistCreator
             filterRequest={{
               and_filters: currentFilters.current.and,

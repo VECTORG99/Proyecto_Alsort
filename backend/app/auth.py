@@ -1,21 +1,24 @@
-import uuid
-import hashlib
 import base64
+import hashlib
+import hmac
 import json
-import httpx
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
-from .database import get_session, User
+from .database import User, get_session
 from .logger import logger
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+HTTPX_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
 
 def generate_code_verifier() -> str:
@@ -51,6 +54,13 @@ async def login():
 
     logger.info("Redirecting to Spotify OAuth")
     response = RedirectResponse(url=f"https://accounts.spotify.com/authorize?{params}")
+    response.set_cookie(
+        key="oauth_state",
+        value=state,
+        max_age=300,
+        httponly=True,
+        samesite="lax",
+    )
     return response
 
 
@@ -71,14 +81,24 @@ async def callback(
         logger.warning("OAuth callback missing params")
         return RedirectResponse(url=f"{settings.frontend_url}/?error=missing_params")
 
+    stored_state = request.cookies.get("oauth_state")
+    if not stored_state:
+        logger.warning("OAuth callback missing state cookie")
+        return RedirectResponse(url=f"{settings.frontend_url}/?error=csrf")
+
     try:
         state_data = json.loads(base64.urlsafe_b64decode(state + "==").decode())
         verifier = state_data["v"]
+        returned_state = state_data["s"]
     except Exception:
         logger.error("Invalid OAuth state")
         raise HTTPException(status_code=400, detail="Invalid state")
 
-    async with httpx.AsyncClient() as client:
+    if not hmac.compare_digest(returned_state, stored_state):
+        logger.warning("OAuth state mismatch")
+        return RedirectResponse(url=f"{settings.frontend_url}/?error=csrf")
+
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         resp = await client.post(
             "https://accounts.spotify.com/api/token",
             data={
@@ -101,7 +121,7 @@ async def callback(
     expires_in = token_data["expires_in"]
     expires_at = datetime.now(timezone.utc).timestamp() + expires_in
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         me_resp = await client.get(
             "https://api.spotify.com/v1/me",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -132,6 +152,18 @@ async def callback(
             token_expires_at=expires_at,
         )
         db.add(user)
+        try:
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            result = await db.execute(select(User).where(User.spotify_id == spotify_id))
+            user = result.scalar_one_or_none()
+            if user:
+                user.access_token = access_token
+                user.refresh_token = refresh_token or user.refresh_token
+                user.token_expires_at = expires_at
+            else:
+                db.add(user)
         logger.info("New user registered spotify_id=%s", spotify_id)
 
     await db.commit()
@@ -139,8 +171,10 @@ async def callback(
 
     session_token = user.id
     redirect_url = f"{settings.frontend_url}/?session={session_token}"
+    response = RedirectResponse(url=redirect_url)
+    response.delete_cookie("oauth_state")
     logger.info("OAuth complete spotify_id=%s redirecting", spotify_id)
-    return RedirectResponse(url=redirect_url)
+    return response
 
 
 @router.get("/me")
@@ -177,10 +211,10 @@ async def refresh_spotify_token(user: User, db: AsyncSession):
         logger.warning("No refresh token for user spotify_id=%s", user.spotify_id)
         raise HTTPException(
             status_code=401,
-            detail="No refresh token available. Spotify no proporcionó un refresh_token con PKCE. Debes iniciar sesión de nuevo.",
+            detail="No refresh token available. Vuelve a iniciar sesión.",
         )
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         resp = await client.post(
             "https://accounts.spotify.com/api/token",
             data={

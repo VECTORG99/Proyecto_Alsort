@@ -1,16 +1,16 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import settings
-from .database import init_db, get_session, User
 from .auth import router as auth_router
-from .models import FilterRequest, CreatePlaylistRequest, TrackOut
-from .playlist_manager import get_filtered_tracks, create_playlist_from_filters
-from .logger import setup_logging, logger
+from .config import settings
+from .database import User, get_session, init_db
+from .logger import logger, setup_logging
+from .models import CreatePlaylistRequest, FilterRequest
+from .playlist_manager import create_playlist_from_filters, get_filtered_tracks
 
 
 @asynccontextmanager
@@ -89,8 +89,11 @@ async def sync_tracks(
 
     logger.info("Starting sync user=%s", user.spotify_id)
     client = SpotifyClient(user, db)
-    tracks_data = await client.fetch_all_liked_tracks()
-    await client.cache_tracks(tracks_data, user.spotify_id)
+    try:
+        tracks_data = await client.fetch_all_liked_tracks()
+        await client.cache_tracks(tracks_data, user.spotify_id)
+    finally:
+        await client.close()
     logger.info("Sync complete user=%s total=%d", user.spotify_id, len(tracks_data))
     return {"synced": len(tracks_data)}
 

@@ -1,6 +1,6 @@
 import pytest
+from app.models import CreatePlaylistRequest, FilterCriterion, FilterRequest
 from pydantic import ValidationError
-from app.models import FilterCriterion, FilterRequest, CreatePlaylistRequest
 
 
 class TestFilterCriterion:
@@ -63,6 +63,26 @@ class TestFilterCriterion:
     def test_valid_workout(self):
         c = FilterCriterion(type="workout", operator="=", value=True)
         assert c.value is True
+
+    def test_between_not_list_raises(self):
+        with pytest.raises(ValidationError, match="requires a list"):
+            FilterCriterion(type="year", operator="between", value="not-a-list")
+
+    def test_between_wrong_length_raises(self):
+        with pytest.raises(ValidationError, match="requires a list of 2"):
+            FilterCriterion(type="year", operator="between", value=[2000])
+
+    def test_between_non_numeric_item_raises(self):
+        with pytest.raises(ValidationError, match="must be numeric"):
+            FilterCriterion(type="year", operator="between", value=["a", "b"])
+
+    def test_numeric_operator_non_numeric_raises(self):
+        with pytest.raises(ValidationError, match="requires a numeric"):
+            FilterCriterion(type="year", operator=">", value="abc")
+
+    def test_contains_non_string_raises(self):
+        with pytest.raises(ValidationError, match="requires a string"):
+            FilterCriterion(type="artist", operator="contains", value=123)
 
 
 class TestFilterRequest:

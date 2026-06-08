@@ -32,7 +32,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const addToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = nextId.current++
-    setToasts((prev) => [...prev, { id, message, type }])
+    setToasts((prev) => {
+      const next = [...prev, { id, message, type }]
+      if (next.length > 5) {
+        const removed = next.shift()!
+        const timer = timersRef.current.get(removed.id)
+        if (timer) {
+          clearTimeout(timer)
+          timersRef.current.delete(removed.id)
+        }
+      }
+      return next
+    })
     const timer = setTimeout(() => removeToast(id), 4000)
     timersRef.current.set(id, timer)
   }, [removeToast])

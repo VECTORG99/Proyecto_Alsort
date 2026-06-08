@@ -16,7 +16,8 @@ interface SongListProps {
   onSortChange: (sortBy: SortField | null, sortOrder: SortOrder) => void
 }
 
-function formatDuration(ms: number): string {
+function formatDuration(ms: number | null | undefined): string {
+  if (ms == null || ms < 0) return '0:00'
   const min = Math.floor(ms / 60000)
   const sec = Math.floor((ms % 60000) / 1000)
   return `${min}:${sec.toString().padStart(2, '0')}`

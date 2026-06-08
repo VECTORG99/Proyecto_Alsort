@@ -1,18 +1,22 @@
 import asyncio
-import httpx
 from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import httpx
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .database import User, CachedTrack
 from .auth import refresh_spotify_token
+from .database import CachedTrack, User
 from .logger import logger
-
 
 RETRYABLE_STATUSES = {429, 502, 503, 504}
 MAX_RETRIES = 3
 RATE_LIMIT_MAX = 280
 RATE_LIMIT_WINDOW = 60
+SQLITE_VAR_LIMIT = 900
+HTTPX_TIMEOUT = httpx.Timeout(10.0, connect=5.0, pool=30.0)
+
+_refresh_locks: dict[str, asyncio.Lock] = {}
 
 
 class SpotifyClient:
@@ -22,11 +26,18 @@ class SpotifyClient:
         self._base_url = "https://api.spotify.com/v1"
         self._request_timestamps: list[float] = []
         self._rate_lock = asyncio.Lock()
-        self._client = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(timeout=HTTPX_TIMEOUT)
+
+    async def close(self):
+        await self._client.aclose()
 
     async def _ensure_token(self):
-        if datetime.now(timezone.utc).timestamp() > self.user.token_expires_at:
-            await refresh_spotify_token(self.user, self.db)
+        if datetime.now(timezone.utc).timestamp() <= self.user.token_expires_at:
+            return
+        lock = _refresh_locks.setdefault(self.user.spotify_id, asyncio.Lock())
+        async with lock:
+            if datetime.now(timezone.utc).timestamp() > self.user.token_expires_at:
+                await refresh_spotify_token(self.user, self.db)
 
     async def _get_headers(self) -> dict:
         await self._ensure_token()
@@ -38,11 +49,20 @@ class SpotifyClient:
             cutoff = now - RATE_LIMIT_WINDOW
             self._request_timestamps = [t for t in self._request_timestamps if t > cutoff]
 
-            if len(self._request_timestamps) >= RATE_LIMIT_MAX:
+            while len(self._request_timestamps) >= RATE_LIMIT_MAX:
                 wait = self._request_timestamps[0] - cutoff
-                if wait > 0:
-                    await asyncio.sleep(wait)
-                self._request_timestamps = [t for t in self._request_timestamps if t > asyncio.get_event_loop().time() - RATE_LIMIT_WINDOW]
+                if wait <= 0:
+                    break
+                await asyncio.sleep(wait)
+                cutoff = asyncio.get_event_loop().time() - RATE_LIMIT_WINDOW
+                self._request_timestamps = [t for t in self._request_timestamps if t > cutoff]
+
+    async def _register_request(self):
+        async with self._rate_lock:
+            now = asyncio.get_event_loop().time()
+            cutoff = now - RATE_LIMIT_WINDOW
+            self._request_timestamps = [t for t in self._request_timestamps if t > cutoff]
+            self._request_timestamps.append(now)
 
     async def _request(
         self,
@@ -71,7 +91,7 @@ class SpotifyClient:
                 logger.error("Request failed after %d retries %s %s: %s", max_retries, method, path, e)
                 raise Exception(f"Spotify API request failed after {max_retries} retries: {e}")
 
-            self._request_timestamps.append(asyncio.get_event_loop().time())
+            await self._register_request()
 
             if resp.status_code == 429 and attempt < max_retries:
                 retry_after = int(resp.headers.get("Retry-After", 2 ** attempt))
@@ -87,9 +107,10 @@ class SpotifyClient:
                 await asyncio.sleep(wait)
                 continue
 
-            return resp
+            if resp.status_code >= 400:
+                raise Exception(f"Spotify API error: {resp.status_code} {resp.text}")
 
-        raise Exception(f"Spotify API error: {resp.status_code} {resp.text}")
+            return resp
 
     async def fetch_all_liked_tracks(self) -> list[dict]:
         tracks = []
@@ -101,9 +122,6 @@ class SpotifyClient:
 
         while True:
             resp = await self._request("GET", "/me/tracks", params={"limit": limit, "offset": offset})
-            if resp.status_code != 200:
-                raise Exception(f"Spotify API error: {resp.status_code} {resp.text}")
-
             data = resp.json()
             if total is None:
                 total = data.get("total", 0)
@@ -133,11 +151,10 @@ class SpotifyClient:
         for i in range(0, len(track_ids), 100):
             batch = track_ids[i : i + 100]
             resp = await self._request("GET", "/audio-features", params={"ids": ",".join(batch)})
-            if resp.status_code == 200:
-                af_data = resp.json()
-                for af in af_data.get("audio_features", []):
-                    if af and af.get("id"):
-                        features_map[af["id"]] = af
+            af_data = resp.json()
+            for af in af_data.get("audio_features", []):
+                if af and af.get("id"):
+                    features_map[af["id"]] = af
 
         logger.info("Fetched audio features for %d tracks", len(features_map))
         return features_map
@@ -149,11 +166,10 @@ class SpotifyClient:
         for i in range(0, len(artist_ids), 50):
             batch = artist_ids[i : i + 50]
             resp = await self._request("GET", "/artists", params={"ids": ",".join(batch)})
-            if resp.status_code == 200:
-                artists_data = resp.json()
-                for artist in artists_data.get("artists", []):
-                    if artist and artist.get("id"):
-                        genres_map[artist["id"]] = artist.get("genres", [])
+            artists_data = resp.json()
+            for artist in artists_data.get("artists", []):
+                if artist and artist.get("id"):
+                    genres_map[artist["id"]] = artist.get("genres", [])
 
         logger.info("Fetched genres for %d artists", len(genres_map))
         return genres_map
@@ -166,9 +182,6 @@ class SpotifyClient:
             "/me/playlists",
             json={"name": name, "description": description, "public": public},
         )
-        if playlist_resp.status_code not in (200, 201):
-            raise Exception(f"Failed to create playlist: {playlist_resp.text}")
-
         playlist = playlist_resp.json()
         playlist_id = playlist["id"]
         logger.info("Playlist created id=%s name=%s", playlist_id, name)
@@ -198,13 +211,17 @@ class SpotifyClient:
         track_ids = [t["id"] for t in tracks if t.get("id")]
         features_map = await self.fetch_audio_features(track_ids)
 
-        existing_result = await self.db.execute(
-            select(CachedTrack).where(
-                CachedTrack.track_id.in_(track_ids),
-                CachedTrack.spotify_user_id == user_spotify_id,
+        existing_tracks = {}
+        for i in range(0, len(track_ids), SQLITE_VAR_LIMIT):
+            batch_ids = track_ids[i : i + SQLITE_VAR_LIMIT]
+            result = await self.db.execute(
+                select(CachedTrack).where(
+                    CachedTrack.track_id.in_(batch_ids),
+                    CachedTrack.spotify_user_id == user_spotify_id,
+                )
             )
-        )
-        existing_tracks = {ct.track_id: ct for ct in existing_result.scalars().all()}
+            for ct in result.scalars().all():
+                existing_tracks[ct.track_id] = ct
 
         for track in tracks:
             tid = track.get("id")

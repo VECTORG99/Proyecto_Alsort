@@ -12,6 +12,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const abort = new AbortController()
+    const timeout = setTimeout(() => {
+      abort.abort()
+    }, 10000)
+
     const params = new URLSearchParams(window.location.search)
     const session = params.get('session')
     const err = params.get('error')
@@ -30,7 +35,7 @@ export default function App() {
 
     const stored = localStorage.getItem('alsort_session_id')
     if (stored) {
-      getMe()
+      getMe(abort.signal)
         .then((u) => setUser(u))
         .catch(() => {
           clearSession()
@@ -39,6 +44,11 @@ export default function App() {
         .finally(() => setLoading(false))
     } else {
       setLoading(false)
+    }
+
+    return () => {
+      clearTimeout(timeout)
+      abort.abort()
     }
   }, [])
 

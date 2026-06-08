@@ -166,8 +166,8 @@ def test_no_match(tracks):
 
 
 def test_none_values():
-    from app.models import TrackOut
     from app.filters import apply_filters
+    from app.models import TrackOut
 
     track = TrackOut(
         id="99",
@@ -202,3 +202,66 @@ def test_or_filters_empty_and_present(tracks):
     result = apply_filters(tracks, [criterion], [])
     assert len(result) == 1
     assert result[0].year == 2024
+
+
+def test_sort_no_sort_by(tracks):
+    from app.filters import sort_tracks
+
+    result = sort_tracks(tracks, None, "desc")
+    assert len(result) == len(tracks)
+
+
+def test_sort_ascending(tracks):
+    from app.filters import sort_tracks
+
+    result = sort_tracks(tracks, "year", "asc")
+    assert len(result) == len(tracks)
+    assert result[0].year <= result[-1].year
+
+
+def test_sort_descending(tracks):
+    from app.filters import sort_tracks
+
+    result = sort_tracks(tracks, "year", "desc")
+    assert len(result) == len(tracks)
+    assert result[0].year >= result[-1].year
+
+
+def test_sort_unknown_field(tracks):
+    from app.filters import sort_tracks
+
+    result = sort_tracks(tracks, "unknown_field", "desc")
+    assert len(result) == len(tracks)
+
+
+def test_sort_popularity(tracks):
+    from app.filters import sort_tracks
+
+    result = sort_tracks(tracks, "popularity", "desc")
+    assert len(result) == len(tracks)
+    assert result[0].popularity >= result[-1].popularity
+
+
+def test_unknown_filter_type_raises(tracks):
+    from app.filters import apply_filters
+    from app.models import FilterCriterion
+
+    criterion = FilterCriterion(type="year", operator=">", value=2000)
+    criterion.type = "unknown_type"
+
+    try:
+        apply_filters(tracks, [criterion], [])
+        assert False, "should have raised"
+    except ValueError as e:
+        assert "unknown" in str(e).lower()
+
+
+def test_sort_combined_with_filter(tracks):
+    from app.filters import apply_filters
+    from app.models import FilterCriterion
+
+    criteria = FilterCriterion(type="year", operator=">=", value=2020)
+    result = apply_filters(tracks, [criteria], [], sort_by="popularity", sort_order="desc")
+    assert len(result) >= 1
+    for t in result:
+        assert t.year is not None and t.year >= 2020

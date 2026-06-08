@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
 interface LoadingContextType {
   isLoading: boolean
@@ -10,18 +10,18 @@ interface LoadingContextType {
 const LoadingContext = createContext<LoadingContextType | null>(null)
 
 export function LoadingProvider({ children }: { children: ReactNode }) {
-  const [isLoading, setIsLoading] = useState(false)
+  const [loadingCount, setLoadingCount] = useState(0)
   const [message, setMessage] = useState('')
+  const isLoading = loadingCount > 0
 
-  function startLoading(msg: string) {
+  const startLoading = useCallback((msg: string) => {
     setMessage(msg)
-    setIsLoading(true)
-  }
+    setLoadingCount(c => c + 1)
+  }, [])
 
-  function stopLoading() {
-    setIsLoading(false)
-    setMessage('')
-  }
+  const stopLoading = useCallback(() => {
+    setLoadingCount(c => Math.max(0, c - 1))
+  }, [])
 
   return (
     <LoadingContext.Provider value={{ isLoading, message, startLoading, stopLoading }}>

@@ -53,13 +53,15 @@ export default function FilterPanel({ onApply }: FilterPanelProps) {
 
   const updateFilter = useCallback((
     group: 'and' | 'or',
-    index: number,
+    key: number,
     updates: Partial<FilterCriterion>
   ) => {
     const setter = group === 'and' ? setAndFilters : setOrFilters
     setter((prev) => {
+      const idx = prev.findIndex(f => f._key === key)
+      if (idx === -1) return prev
       const next = [...prev]
-      const current = { ...next[index] }
+      const current = { ...next[idx] }
 
       if (updates.type && updates.type !== current.type) {
         const op = FILTER_OPERATORS[updates.type][0]
@@ -74,14 +76,14 @@ export default function FilterPanel({ onApply }: FilterPanelProps) {
       if (updates.value !== undefined) {
         current.value = updates.value
       }
-      next[index] = current
+      next[idx] = current
       return next
     })
   }, [])
 
-  const removeFilter = useCallback((group: 'and' | 'or', index: number) => {
+  const removeFilter = useCallback((group: 'and' | 'or', key: number) => {
     const setter = group === 'and' ? setAndFilters : setOrFilters
-    setter((prev) => prev.filter((_, i) => i !== index))
+    setter((prev) => prev.filter(f => f._key !== key))
   }, [])
 
   function handleApply() {
@@ -136,12 +138,12 @@ function FilterGroup({ label, filters, group, onAdd, onUpdate, onRemove }: Filte
         <button className="btn-add-filter" onClick={onAdd}>+ Añadir filtro</button>
       </div>
       {filters.length === 0 && <p className="filter-empty">Sin filtros. Añade uno para empezar.</p>}
-      {filters.map((filter, idx) => (
+      {filters.map((filter) => (
         <FilterRow
           key={filter._key}
           criterion={filter}
-          onChange={(updates) => onUpdate(idx, updates)}
-          onRemove={() => onRemove(idx)}
+          onChange={(updates) => onUpdate(filter._key, updates)}
+          onRemove={() => onRemove(filter._key)}
         />
       ))}
     </div>
