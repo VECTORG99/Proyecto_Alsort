@@ -1,151 +1,66 @@
-<div align="center">
-  <h1>🎵 Alsort</h1>
-  <p><strong>Gestor inteligente de playlists de Spotify</strong></p>
-  <p>Extrae tus canciones likeadas, aplícales filtros avanzados y crea playlists automáticamente.</p>
-  <p>
-    <a href="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml">
-      <img src="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml/badge.svg" alt="CI">
-    </a>
-  </p>
-</div>
+# Alsort
+
+**Gestor inteligente de playlists de Spotify.** Extrae tus canciones likeadas, enriquécelas con audio features y géneros, aplícales filtros avanzados con lógica AND/OR, ordénalas por múltiples criterios y crea playlists directamente en tu cuenta de Spotify.
 
 ---
 
-## Tabla de Contenidos
+## Stack
 
-- [Descripción](#descripción)
-- [Capturas](#capturas)
-- [Stack Tecnológico](#stack-tecnológico)
-- [Requisitos](#requisitos)
-- [Instalación y Configuración](#instalación-y-configuración)
-  - [1. Crear App en Spotify](#1-crear-app-en-spotify)
-  - [2. Configurar Backend](#2-configurar-backend)
-  - [3. Configurar Frontend](#3-configurar-frontend)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Guía de Uso](#guía-de-uso)
-- [Filtros Disponibles](#filtros-disponibles)
-  - [Filtros de Metadata](#filtros-de-metadata)
-  - [Filtros de Audio Features](#filtros-de-audio-features)
-  - [Filtros Derivados](#filtros-derivados)
-- [Crossplaylists: Lógica AND/OR](#crossplaylists-lógica-ando)
-- [API Endpoints](#api-endpoints)
-- [Flujo de Datos](#flujo-de-datos)
-- [Posibles Mejoras Futuras](#posibles-mejoras-futuras)
-
----
-
-## Descripción
-
-**Alsort** es una aplicación web que se conecta con tu cuenta de Spotify para:
-
-1. **Extraer todas tus canciones likeadas** (con paginación automática)
-2. **Enriquecerlas** con audio features (BPM, energía, instrumentalidad, etc.) y géneros de los artistas
-3. **Filtrarlas** combinando múltiples criterios con lógica AND/OR
-4. **Crear playlists** directamente en tu cuenta de Spotify con los resultados
-
-Está diseñada para resolver el problema de tener cientos o miles de canciones likeadas y no saber cómo organizarlas. Con Alsort puedes crear playlists temáticas al instante: "Rock intenso para gym", "Acústico para estudiar", "Fiesta 2020s", etc.
-
----
-
-## Capturas
-
-*(pendiente)*
-
----
-
-## Stack Tecnológico
-
-| Capa | Tecnología | Propósito |
-|------|-----------|-----------|
-| **Frontend** | React 18 + TypeScript + Vite | Interfaz de usuario moderna y reactiva |
-| **Backend** | Python 3.11+ + FastAPI | API REST asíncrona |
-| **Base de datos** | SQLite + SQLAlchemy 2.0 (async) | Caching de canciones y sesiones |
-| **HTTP Client** | HTTPX (async) | Comunicación con Spotify Web API |
-| **Auth** | PKCE OAuth 2.0 | Autenticación segura con Spotify |
-| **Estilos** | CSS personalizado (modo oscuro) | Tema inspirado en Spotify |
+| Capa | Tecnología |
+|------|-----------|
+| Frontend | React 18 + TypeScript + Vite |
+| Backend | Python 3.12 + FastAPI |
+| Base de datos | SQLite + SQLAlchemy 2.0 (async) + Alembic |
+| HTTP Client | httpx (async) |
+| Auth | OAuth PKCE |
+| Infra | Docker Compose (nginx + backend) |
 
 ---
 
 ## Requisitos
 
-- **Python 3.11 o superior**
-- **Node.js 18 o superior** (con npm)
-- Una cuenta de **Spotify** (gratuita o premium)
-- Una **app registrada** en el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+- Python 3.12+
+- Node.js 18+
+- Cuenta de Spotify (gratuita o premium)
+- App registrada en [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 
 ---
 
-## Instalación y Configuración
+## Instalación
 
 ### 1. Crear App en Spotify
 
-1. Ve a [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Haz clic en **"Create App"**
-3. Ponle un nombre (ej: "Alsort") y una descripción
-4. En **Redirect URIs**, agrega: `http://localhost:8000/auth/callback`
-5. Marca **Web API** y acepta los términos
-6. Guarda los cambios
-7. Copia el **Client ID** y el **Client Secret** de la página de la app
+1. Ve a [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) → **Create App**
+2. Nombre: `Alsort`, Redirect URI: `http://localhost:8000/auth/callback`
+3. Marca **Web API**, guarda
+4. Copia **Client ID** y **Client Secret**
 
-### 2. Configurar Backend
+### 2. Desarrollo local
 
 ```bash
-# 1. Clona el repositorio
 git clone https://github.com/VECTORG99/Proyecto_Alsort.git
 cd Proyecto_Alsort
 
-# 2. Ve al directorio del backend
-cd backend
+# Backend
+cp backend/.env.example backend/.env
+# Edita backend/.env con tu Client ID y Client Secret
+cd backend && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 3. Crea el archivo .env desde el ejemplo
-cp .env.example .env
-
-# 4. Edita .env con tus credenciales de Spotify
-nano .env
+# Frontend (nueva terminal)
+cd frontend && npm install && npm run dev
 ```
 
-El archivo `.env` debe verse así:
+Backend: `http://localhost:8000` — Docs API: `http://localhost:8000/docs`
+Frontend: `http://localhost:5173`
 
-```env
-SPOTIFY_CLIENT_ID=tu_client_id_aqui
-SPOTIFY_CLIENT_SECRET=tu_client_secret_aqui
-SPOTIFY_REDIRECT_URI=http://localhost:8000/auth/callback
-SESSION_SECRET=alsort-secret-key-change-in-production
-FRONTEND_URL=http://localhost:5173
-```
-
-Luego instala dependencias y ejecuta:
+### 3. Docker
 
 ```bash
-# 5. Crea un entorno virtual
-python -m venv .venv
-source .venv/bin/activate  # En Windows: .venv\Scripts\activate
-
-# 6. Instala dependencias
-pip install -r requirements.txt
-
-# 7. Inicia el servidor
-uvicorn app.main:app --reload
+make docker-up    # docker compose up --build
+make docker-down  # docker compose down
 ```
-
-El backend se iniciará en `http://localhost:8000`. La documentación interactiva de la API está disponible en `http://localhost:8000/docs`.
-
-### 3. Configurar Frontend
-
-Abre una **nueva terminal** y ejecuta:
-
-```bash
-# 1. Ve al directorio del frontend
-cd Proyecto_Alsort/frontend
-
-# 2. Instala dependencias
-npm install
-
-# 3. Inicia el servidor de desarrollo
-npm run dev
-```
-
-El frontend se iniciará en `http://localhost:5173`.
 
 ---
 
@@ -155,224 +70,237 @@ El frontend se iniciará en `http://localhost:5173`.
 Proyecto_Alsort/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                # FastAPI app, rutas, CORS, lifespan
-│   │   ├── config.py              # Config con pydantic-settings
-│   │   ├── auth.py                # OAuth PKCE, login, callback, refresh
-│   │   ├── database.py            # SQLAlchemy async, modelos User/CachedTrack/Playlist
-│   │   ├── spotify_client.py      # Cliente HTTPX para Spotify API
-│   │   ├── models.py              # Pydantic request/response models
-│   │   ├── filters.py             # Motor de filtros (aplica criterios AND/OR)
-│   │   └── playlist_manager.py    # Orquestación: filtrar + crear playlist
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── .venv/                     # Entorno virtual (no incluido en git)
+│   │   ├── main.py                  # FastAPI app, rutas, CORS, lifespan, health
+│   │   ├── config.py                # pydantic-settings (valida env vars al startup)
+│   │   ├── auth.py                  # OAuth PKCE: login, callback, refresh, get_me
+│   │   ├── database.py              # SQLAlchemy async engine, modelos, Alembic runner
+│   │   ├── models.py                # Pydantic: FilterCriterion, FilterRequest, TrackOut, etc.
+│   │   ├── spotify_client.py        # Cliente httpx con rate limiter, retry, batch requests
+│   │   ├── filters.py               # Motor de filtros (AND/OR, sort, tipo a atributo)
+│   │   ├── playlist_manager.py      # Orquestación: filtrar + cachear + crear playlist
+│   │   └── logger.py                # Logging estructurado [timestamp] LEVEL module:line msg
+│   ├── alembic/                     # Migraciones (1 initial)
+│   ├── tests/                       # 45+ tests (pytest)
+│   ├── requirements.txt             # Producción
+│   ├── requirements-dev.txt         # + pytest
+│   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── main.tsx               # Punto de entrada React
-│   │   ├── App.tsx                # Router lógico: Login ↔ Dashboard
-│   │   ├── index.css              # Estilos globales (tema oscuro)
-│   │   ├── types/
-│   │   │   └── index.ts           # Tipos TypeScript y constantes
-│   │   ├── services/
-│   │   │   └── api.ts             # Cliente HTTP para el backend
+│   │   ├── main.tsx                 # Entry point
+│   │   ├── App.tsx                  # Sesión, Login ↔ Dashboard, Loading + Toast wrappers
+│   │   ├── index.css                # Tema oscuro Spotify, skeleton, toast, paginación
+│   │   ├── vite-env.d.ts            # Tipos VITE_API_URL
+│   │   ├── types/index.ts           # Track, FilterCriterion, FilterRequest, constantes
+│   │   ├── services/api.ts          # fetch wrapper con X-Session-Id + AbortSignal
+│   │   ├── context/
+│   │   │   ├── LoadingContext.tsx    # Overlay global con spinner + mensaje
+│   │   │   └── ToastContext.tsx      # Notificaciones success/error/info, auto-dismiss
 │   │   └── components/
-│   │       ├── Login.tsx          # Pantalla de inicio con botón de Spotify
-│   │       ├── Dashboard.tsx      # Panel principal con sidebar + contenido
-│   │       ├── FilterPanel.tsx    # Panel de filtros (AND/OR dinámicos)
-│   │       ├── SongList.tsx       # Lista de canciones con metadata y stats
-│   │       └── PlaylistCreator.tsx # Formulario para crear playlist
-│   ├── index.html
+│   │       ├── Login.tsx             # Botón de inicio con logo Spotify
+│   │       ├── Dashboard.tsx         # Header + sidebar (filtros/crear) + main (lista)
+│   │       ├── FilterPanel.tsx       # Filtros AND/OR con 11 tipos, 7 operadores
+│   │       ├── SongList.tsx          # Resultados: skeleton, búsqueda, sort, paginación
+│   │       └── PlaylistCreator.tsx   # Formulario: nombre, descripción, público/privado
 │   ├── package.json
 │   ├── tsconfig.json
-│   └── vite.config.ts
-├── .gitignore
+│   └── vite.config.ts               # Proxy dev /api → :8000, /auth → :8000
+├── Dockerfile.backend                # Multi-stage, python:3.12-slim, no dev, no-root
+├── Dockerfile.frontend               # Multi-stage, node → nginx, SPA fallback
+├── docker-compose.yml                # backend + frontend, red interna, healthcheck
+├── nginx.conf                        # SPA fallback, proxy reverso, security headers
+├── Makefile                          # dev, build, test, lint, docker, clean
+├── pyproject.toml                    # pytest + ruff config
+├── .pre-commit-config.yaml           # ruff, prettier, hooks generales
+├── .dockerignore
+├── .github/workflows/ci.yml          # test-backend, test-frontend, docker build
+├── AGENTS.md                         # Contexto para IA
 └── README.md
 ```
 
 ---
 
-## Guía de Uso
+## Variables de Entorno
 
-1. **Abre** `http://localhost:5173` en tu navegador
-2. **Inicia sesión** con Spotify — serás redirigido a Spotify para autorizar la app
-3. Una vez autenticado, verás el dashboard vacío
-4. Haz clic en **"🔄 Sincronizar likes"** para cargar tus canciones likeadas
-   - Esto puede tomar unos segundos dependiendo de cuántas tengas
-   - Las canciones se cachean en SQLite para evitar llamadas repetidas
-5. En el panel lateral, añade **filtros AND** y/o **filtros OR**:
-   - Los filtros **AND** son obligatorios (todos deben cumplirse)
-   - Los filtros **OR** son opcionales (al menos uno debe cumplirse)
-6. Haz clic en **"Aplicar Filtros"** para ver los resultados
-7. Una vez satisfecho con los resultados, desplázate abajo en el panel lateral
-8. Ponle **nombre** a tu playlist, opcionalmente una descripción
-9. Elige si quieres que sea **pública o privada**
-10. Haz clic en **"Crear Playlist"** — la playlist se creará directamente en tu cuenta de Spotify
+| Variable | Default | Obligatoria | Descripción |
+|----------|---------|-------------|-------------|
+| `SPOTIFY_CLIENT_ID` | — | ✅ | Client ID de tu app en Spotify |
+| `SPOTIFY_CLIENT_SECRET` | — | ❌ (PKCE) | Solo para referencia; PKCE no lo usa |
+| `SPOTIFY_REDIRECT_URI` | `http://localhost:8000/auth/callback` | ❌ | Debe coincidir con el Redirect URI en Spotify Dashboard |
+| `SESSION_SECRET` | — | ✅ | Clave para firma de sesiones |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./data/alsort.db` | ❌ | Ruta a la base de datos SQLite |
+| `FRONTEND_URL` | `http://localhost:5173` | ❌ | Origen CORS y destino de redirect OAuth |
+| `VITE_API_URL` | `""` (mismo origen) | ❌ | URL base de la API (para producción) |
 
----
-
-## Filtros Disponibles
-
-### Filtros de Metadata
-
-| Filtro | Tipo de Valor | Operadores | Descripción |
-|--------|---------------|------------|-------------|
-| **Año** | número | `=` `>` `<` `>=` `<=` `between` | Año de lanzamiento (ej: 2020, [2000, 2010]) |
-| **Popularidad** | número (0-100) | `=` `>` `<` `>=` `<=` | Popularidad según Spotify |
-| **Duración** | número (ms) | `>` `<` `between` | Duración en milisegundos |
-| **Explícito** | booleano | `=` | Contenido explícito (Sí/No) |
-| **Artista** | texto | `=` `contains` | Busca por nombre de artista |
-| **Álbum** | texto | `=` `contains` | Busca por nombre de álbum |
-| **Género** | texto | `=` `contains` | Géneros musicales del artista (rock, pop, jazz, etc.) |
-
-### Filtros de Audio Features
-
-Spotify analiza cada canción y devuelve estos valores numéricos (0.0 a 1.0, excepto tempo):
-
-| Filtro | Rango | Operadores | Descripción |
-|--------|-------|------------|-------------|
-| **Tempo (BPM)** | 0-250+ | `>` `<` `>=` `<=` `between` | Pulsaciones por minuto |
-| **Instrumentalidad** | 0.0 – 1.0 | `>` `<` `>=` `<=` | Predice si una canción no tiene voces. Cerca de 1.0 = instrumental |
-| **Acousticidad** | 0.0 – 1.0 | `>` `<` `>=` `<=` | Confianza de que la pista es acústica |
-
-### Filtros Derivados
-
-| Filtro | Tipo | Descripción |
-|--------|------|-------------|
-| **Workout** | booleano (Sí/No) | Activa el preset: `energía > 0.7 AND tempo > 120 AND danceability > 0.6` |
-
-Todos los filtros derivados se calculan a partir de los `audio_features` que Spotify ya proporciona, sin llamadas extra a la API.
-
----
-
-## Crossplaylists: Lógica AND/OR
-
-El verdadero poder de Alsort está en la combinación de filtros. Puedes mezclar criterios de metadata, audio features y derivados en una misma consulta.
-
-**Ejemplos de combinaciones:**
-
-| Propósito | Filtros AND | Filtros OR | Resultado |
-|-----------|-------------|------------|-----------|
-| Rock intenso | `año between [2000, 2024]` `tempo > 130` | `género contains "rock"` `género contains "metal"` | Rock y metal modernos de alto ritmo |
-| Chill acústico | `acousticness > 0.6` `instrumentalness < 0.3` | `género contains "acoustic"` `género contains "folk"` | Acústico con voz, relajante |
-| Fiesta 2020s | `año > 2020` `workout = Sí` | — | Canciones recientes y bailables |
-| Madrugada | `acousticness > 0.4` `tempo < 100` | `género contains "jazz"` `género contains "ambient"` | Jazz suave o ambiental para la noche |
-| Clásicos | `año between [1960, 1999]` `popularity > 50` | — | Canciones populares antiguas |
-
-Las **canciones likeadas** se filtran en dos pasos:
-1. **AND**: deben pasar **todos** los criterios AND
-2. **OR**: deben pasar **al menos uno** de los criterios OR (si no hay OR, se saltan este paso)
+El backend valida al startup que `SPOTIFY_CLIENT_ID` y `SESSION_SECRET` estén configuradas y no usen valores placeholder. Si falta alguna, el proceso termina con un mensaje claro.
 
 ---
 
 ## API Endpoints
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/auth/login` | Redirige a la pantalla de autorización de Spotify |
-| `GET` | `/auth/callback` | Callback OAuth, intercambia código por token |
-| `GET` | `/auth/me` | Obtiene información del usuario autenticado |
-| `POST` | `/api/tracks/sync` | Sincroniza todas las canciones likeadas + audio features + géneros. Las guarda en SQLite |
-| `POST` | `/api/tracks/filter` | Filtra canciones según criterios AND/OR. Body: `FilterRequest` |
-| `POST` | `/api/playlists` | Crea una playlist en Spotify con las canciones filtradas. Body: `CreatePlaylistRequest` |
+### Auth (`/auth`)
 
-### Ejemplo de `FilterRequest`
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| `GET` | `/auth/login` | No | Redirige a Spotify con PKCE challenge |
+| `GET` | `/auth/callback` | No | Intercambia code por token, crea/actualiza usuario, redirect a frontend con `?session=` |
+| `GET` | `/auth/me` | X-Session-Id | Info del usuario + refresh automático de token si expiró |
 
-```json
-{
-  "and_filters": [
-    { "type": "year", "operator": "between", "value": [2010, 2024] },
-    { "type": "tempo", "operator": ">", "value": 120 },
-    { "type": "workout", "operator": "=", "value": true }
-  ],
-  "or_filters": [
-    { "type": "genre", "operator": "contains", "value": "rock" },
-    { "type": "genre", "operator": "contains", "value": "metal" }
-  ],
-  "limit": 100,
-  "offset": 0
-}
-```
+### Tracks (`/api/tracks`)
 
-### Ejemplo de `CreatePlaylistRequest`
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| `POST` | `/api/tracks/sync` | X-Session-Id | Trae liked songs, audio features, géneros, cachea en SQLite |
+| `POST` | `/api/tracks/filter` | X-Session-Id | Filtra + ordena + paginación sobre cache |
 
-```json
-{
-  "name": "Rock Intenso - Alsort",
-  "description": "Creada automáticamente con Alsort",
-  "public": true,
-  "filter_criteria": {
-    "and_filters": [
-      { "type": "year", "operator": ">", "value": 2010 },
-      { "type": "workout", "operator": "=", "value": true }
-    ],
-    "or_filters": [],
-    "limit": 200,
-    "offset": 0
-  }
-}
-```
+### Playlists
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| `POST` | `/api/playlists` | X-Session-Id | Crea playlist desde filtros (máx 10.000 tracks) |
+
+### Health
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| `GET` | `/health` | No | `{"status": "ok", "service": "alsort-api"}` |
+
+### Autenticación
+
+Todas las rutas protegidas leen el header `X-Session-Id` (o cookie `session_id`). El valor es el UUID del usuario en la base de datos, almacenado en `localStorage` como `alsort_session_id` tras el flujo OAuth.
 
 ---
 
-## Flujo de Datos
+## Filtros
 
-```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  Navegador   │────▶│  Frontend React  │────▶│  Backend FastAPI │
-│  (localhost  │     │  (localhost:5173) │     │  (localhost:8000)│
-│    :5173)    │◀────│                  │◀────│                  │
-└─────────────┘     └──────────────────┘     └────────┬─────────┘
-                                                       │
-                                                       ▼
-                                              ┌──────────────────┐
-                                              │   SQLite (cache) │
-                                              │   - Usuarios     │
-                                              │   - Tracks       │
-                                              │   - Audio feats  │
-                                              └──────────────────┘
-                                                       │
-                                                       ▼
-                                              ┌──────────────────┐
-                                              │  Spotify Web API │
-                                              │  - Liked tracks  │
-                                              │  - Audio feats   │
-                                              │  - Create plylst │
-                                              └──────────────────┘
-```
+### Tipos disponibles
 
-**Proceso detallado:**
+| Tipo | Rango | Operadores | Fuente |
+|------|-------|------------|--------|
+| `year` | 1900–2030 | `=` `>` `<` `>=` `<=` `between` | Metadata del álbum |
+| `popularity` | 0–100 | `=` `>` `<` `>=` `<=` | Spotify |
+| `duration_ms` | cualquier entero | `>` `<` `between` | Metadata |
+| `explicit` | booleano | `=` | Metadata |
+| `artist` | texto | `=` `contains` | Metadata |
+| `album` | texto | `=` `contains` | Metadata |
+| `genre` | texto | `=` `contains` | Artista (vía Spotify) |
+| `instrumentalness` | 0.0–1.0 | `>` `<` `>=` `<=` | Audio features |
+| `acousticness` | 0.0–1.0 | `>` `<` `>=` `<=` | Audio features |
+| `tempo` | 0–300 | `>` `<` `>=` `<=` `between` | Audio features |
+| `workout` | booleano | `=` | Derivado: `energy>0.7 AND tempo>120 AND danceability>0.6` |
 
-1. El usuario inicia sesión → OAuth PKCE → se almacena el token en SQLite
-2. El usuario pide sincronizar → el backend trae todas las liked songs (paginado de 50 en 50)
-3. Por cada canción, se obtienen los artistas (para géneros) y los audio features (BPM, energía, etc.)
-4. Todo se cachea en SQLite para que las siguientes consultas sean instantáneas
-5. Cuando el usuario aplica filtros, se leen de SQLite y se filtran en Python
-6. Al crear una playlist, se toman las URIs de las canciones filtradas y se envían a Spotify
+### Lógica
+
+1. **AND**: la canción debe pasar TODOS los criterios AND
+2. **OR**: la canción debe pasar AL MENOS UNO de los criterios OR (si no hay OR, se omite)
+3. Resultado = intersección de ambos grupos
+
+### Ordenamiento
+
+Campos ordenables: `year`, `popularity`, `duration_ms`, `tempo`, `energy`, `danceability`, `track_name`, `artists` — en sentido ascendente o descendente.
 
 ---
 
-## Posibles Mejoras Futuras
+## Base de Datos
 
-- [ ] **Más filtros derivados:** Chill, Fiesta, Focus, Road Trip, Summer Vibes, etc.
-- [ ] **Más audio features:** Energía, Danceability, Valence, Loudness, Speechiness, Liveness, Key
-- [ ] **Exportar filtros como JSON** para compartir presets
-- [ ] **Actualización incremental** de canciones (no volver a traer todas)
-- [ ] **Filtros guardados** con nombres personalizados
-- [ ] **Soporte para playlists existentes** (no solo liked songs)
-- [ ] **Modo oscuro / modo claro** (actualmente solo oscuro)
-- [ ] **Paginación en la UI** para más de 200 resultados
-- [ ] **Despliegue** con Docker / docker-compose
+### Modelos SQLAlchemy (`database.py`)
+
+**User** (`users`)
+- `id` (UUID PK), `spotify_id` (unique), `display_name`, `email`, `access_token`, `refresh_token`, `token_expires_at`, `created_at`
+
+**CachedTrack** (`cached_tracks`)
+- `id` (UUID PK), `spotify_user_id` (indexed), `track_id`, `track_name`, `artists`, `album`, `album_id`, `album_image_url`, `duration_ms`, `explicit`, `popularity`, `track_url`, `genres`, `year`, `audio_features` (JSON), `cached_at`
+
+**Playlist** (`playlists`)
+- `id` (UUID PK), `spotify_user_id` (indexed), `spotify_playlist_id`, `name`, `description`, `filter_criteria` (JSON), `created_at`
+
+### Migraciones
+
+Alembic con `async_engine_from_config`. La migración inicial (`4dc010d98fab`) crea las 3 tablas. `init_db()` en `database.py` ejecuta `alembic upgrade head` automáticamente al iniciar.
 
 ---
 
-<div align="center">
-  <p>
-    Hecho con ❤️ por <a href="https://github.com/VECTORG99">VECTORG99</a>
-  </p>
-  <p>
-    <a href="https://github.com/VECTORG99/Proyecto_Alsort/issues">Reportar un bug</a>
-    ·
-    <a href="https://github.com/VECTORG99/Proyecto_Alsort/issues">Sugerir una mejora</a>
-  </p>
-</div>
+## Spotify Client
+
+### Rate Limiting
+
+- Máx 280 requests por ventana de 60 segundos
+- `asyncio.Lock` para exclusión mutua
+- Si se excede el límite, espera hasta que expire la ventana
+- Los timestamps expirados se limpian, no se reinicia la ventana por completo
+
+### Retry
+
+- 3 reintentos máximos
+- Reintenta en: 429 (con `Retry-After`), 502, 503, 504
+- Reintenta en: `TimeoutException`, `ConnectError`, `RemoteProtocolError`
+- Backoff exponencial: 1s, 2s, 4s
+
+### Endpoints usados de Spotify
+
+| Endpoint | Propósito | Batch |
+|----------|-----------|-------|
+| `GET /me/tracks` | Liked songs (offset/limit 50) | Paginación automática |
+| `GET /audio-features` | BPM, energía, etc. | 100 IDs por request |
+| `GET /artists` | Géneros de artistas | 50 IDs por request |
+| `POST /me/playlists` | Crear playlist | — |
+| `POST /playlists/{id}/tracks` | Agregar tracks | 100 URIs por request |
+
+---
+
+## Tests
+
+```bash
+make test-backend    # 45+ tests: 22 filtros, 15 modelos, 8 API
+make test-frontend   # tsc --noEmit + vite build
+```
+
+Los tests de backend no requieren conexión a Spotify. Usan `TestClient` de FastAPI y datos mock. Los filtros se prueban con 5 canciones de ejemplo (rock, folk, workout, jazz, pop) cubriendo todos los operadores y combinaciones AND/OR.
+
+---
+
+## Docker
+
+```bash
+make docker-up       # Construye y levanta backend + frontend
+make docker-down     # Detiene servicios
+make build-backend   # Solo construir imagen backend
+make build-frontend  # Solo construir imagen frontend
+```
+
+- Backend: python:3.12-slim, multi-stage, usuario no-root, healthcheck
+- Frontend: nginx:alpine con SPA fallback y proxy reverso
+- Red interna `alsort-net`, backend solo escucha en `127.0.0.1:8000`
+- Volumen `alsort-data` persistente montado en `/app/data`
+- CI también construye ambas imágenes para validar
+
+---
+
+## CI/CD
+
+GitHub Actions en push/PR a `master`:
+
+1. **test-backend**: Python 3.12, instala deps, genera `.env` real (con `secrets.token_hex`), corre pytest
+2. **test-frontend**: Node 20, npm ci, typecheck, build
+3. **docker**: Build de ambas imágenes (sin push)
+
+---
+
+## Guía de Uso
+
+1. Abre `http://localhost:5173` (o el puerto Docker)
+2. Inicia sesión con Spotify — serás redirigido a la autorización de Spotify
+3. Haz clic en **Sincronizar likes** para cargar tus canciones (se cachean en SQLite)
+4. En el panel lateral, añade filtros AND y/u OR
+5. Haz clic en **Aplicar Filtros** — los resultados aparecen con ordenación y paginación
+6. Usa la **búsqueda local** para filtrar dentro de los resultados actuales
+7. Una vez satisfecho, completa el formulario **Crear Playlist** y haz clic en el botón
+8. La playlist aparece automáticamente en tu cuenta de Spotify
+
+---
+
+## Limitaciones Conocidas
+
+- Spotify no siempre devuelve `refresh_token` en flujo PKCE — si el token expira, hay que re-autenticar
+- Máximo 10.000 tracks por playlist (límite de Spotify)
+- La búsqueda local (client-side) solo filtra la página actual, no el conjunto completo
+- Las canciones cacheadas no se actualizan automáticamente — hay que hacer sync manual
