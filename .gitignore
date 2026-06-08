@@ -14,7 +14,8 @@ dist/
 .env
 *.db
 
-# IDE
+# Coverage
+backend/coverage_html/
 .vscode/
 .idea/
 *.swp

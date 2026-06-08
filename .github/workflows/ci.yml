@@ -31,9 +31,22 @@ jobs:
           echo "SPOTIFY_CLIENT_SECRET=test-client-secret" >> backend/.env
           echo "SESSION_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')" >> backend/.env
 
-      - name: Run tests with pytest
+      - name: Run tests with coverage
         run: |
-          cd backend && python -m pytest tests/ -v --tb=short
+          cd backend && python -m pytest --tb=short --cov=app --cov-report=term-missing --cov-report=html:coverage_html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/coverage_html/
+
+      - name: Test summary
+        run: |
+          cd backend && python -m pytest --co 2>/dev/null || true
+          echo "---"
+          echo "Test files: $(find tests/ -name '*.py' -not -name '__init__.py' | wc -l)"
+          echo "Total tests: $(cd backend && python -m pytest --collect-only -q 2>&1 | tail -1 || echo 'N/A')"
 
   test-frontend:
     runs-on: ubuntu-latest

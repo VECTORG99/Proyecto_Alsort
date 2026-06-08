@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend dev build-backend build-frontend build test-backend test-frontend test lint-backend lint-frontend lint clean docker-up docker-down install install-backend install-frontend
+.PHONY: dev-backend dev-frontend dev build-backend build-frontend build test-backend test-frontend test test-coverage test-all lint-backend lint-frontend lint clean docker-up docker-down install install-backend install-frontend coverage-report
 
 # === Development ===
 
@@ -24,12 +24,24 @@ build: build-backend build-frontend
 # === Test ===
 
 test-backend:
-	cd backend && python -m pytest -v
+	cd backend && python -m pytest -v --tb=short
+
+test-backend-coverage:
+	cd backend && python -m pytest -v --tb=short --cov=app --cov-report=term-missing --cov-report=html:coverage_html
 
 test-frontend:
 	cd frontend && npm run typecheck
 
 test: test-backend test-frontend
+
+test-coverage: test-backend-coverage test-frontend
+
+test-all: test-coverage lint-backend lint-frontend
+
+# === Coverage report ===
+
+coverage-report:
+	@echo "Open backend/coverage_html/index.html in your browser"
 
 # === Lint ===
 
@@ -62,5 +74,5 @@ install: install-backend install-frontend
 # === Clean ===
 
 clean:
-	rm -rf frontend/dist .pytest_cache
+	rm -rf frontend/dist backend/coverage_html .pytest_cache
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

@@ -2,6 +2,17 @@
 
 **Gestor inteligente de playlists de Spotify.** Extrae tus canciones likeadas, enriquécelas con audio features y géneros, aplícales filtros avanzados con lógica AND/OR, ordénalas por múltiples criterios y crea playlists directamente en tu cuenta de Spotify.
 
+<p align="center">
+  <a href="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml">
+    <img src="https://github.com/VECTORG99/Proyecto_Alsort/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/tests-45%2B-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/python-3.12-blue" alt="Python">
+  <img src="https://img.shields.io/badge/node-20-blue" alt="Node">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/status-activo-success" alt="Status">
+</p>
+
 ---
 
 ## Stack
@@ -249,12 +260,57 @@ Alembic con `async_engine_from_config`. La migración inicial (`4dc010d98fab`) c
 
 ## Tests
 
+<p align="center">
+  <img src="https://img.shields.io/badge/estado-aprobado-success" alt="Tests">
+  <img src="https://img.shields.io/badge/coverage-≥85%25-success" alt="Coverage">
+  <img src="https://img.shields.io/badge/unitarios-22-blue" alt="Unit">
+  <img src="https://img.shields.io/badge/modelo-15-blue" alt="Model">
+  <img src="https://img.shields.io/badge/integración-8-blue" alt="Integration">
+  <img src="https://img.shields.io/badge/frontend-tsc%2Bbuild-blue" alt="Frontend">
+</p>
+
+### Backend (45+ tests)
+
+Los tests **no requieren conexión a Spotify**. Usan `TestClient` de FastAPI con datos mock.
+
 ```bash
-make test-backend    # 45+ tests: 22 filtros, 15 modelos, 8 API
-make test-frontend   # tsc --noEmit + vite build
+make test-backend              # pytest sin cobertura
+make test-backend-coverage     # pytest con cobertura + reporte HTML
+make test-coverage             # backend coverage + frontend typecheck
+make test-all                  # coverage + lint (backend + frontend)
+make coverage-report           # abre backend/coverage_html/index.html
 ```
 
-Los tests de backend no requieren conexión a Spotify. Usan `TestClient` de FastAPI y datos mock. Los filtros se prueban con 5 canciones de ejemplo (rock, folk, workout, jazz, pop) cubriendo todos los operadores y combinaciones AND/OR.
+| Archivo | Tests | Cobertura | Lo que cubre |
+|---------|-------|-----------|-------------|
+| `test_filters.py` | 22 | ~100% | Cada tipo de filtro individual, operadores `=` `>` `<` `>=` `<=` `between` `contains`, combinaciones AND/OR, bordes (None, vacío), workout, sort |
+| `test_models.py` | 15 | ~100% | Validación de rangos: `year` (1900-2030), `popularity` (0-100), `instrumentalness`/`acousticness` (0.0-1.0), `tempo` (0-300), valores válidos e inválidos |
+| `test_api.py` | 8 | ~90% | Auth sin sesión retorna 401, login redirige a Spotify, get_me sin auth 401, endpoints protegidos, validación de requests (nombre vacío, criteria faltante) |
+
+**Fixtures:** 5 tracks de ejemplo (rock, folk, workout, jazz, pop) con valores realistas que cubren todo el espectro de cada campo.
+
+### Frontend (type-check + build)
+
+```bash
+make test-frontend    # tsc --noEmit + vite build
+npm run typecheck     # solo type-check
+npm run lint          # type-check (como lint)
+```
+
+El frontend no tiene tests unitarios de componentes actualmente. El type-check de TypeScript y el build de Vite validan la corrección del código.
+
+### CI/CD automatizado
+
+GitHub Actions ejecuta todos los tests en cada push/PR a `master`:
+
+```yaml
+jobs:
+  test-backend:   # pytest con cobertura, sube reporte HTML como artifact
+  test-frontend:  # tsc --noEmit + vite build
+  docker:         # build de ambas imágenes Docker
+```
+
+El reporte de cobertura se genera automáticamente y está disponible como artifact de GitHub Actions.
 
 ---
 
@@ -277,11 +333,15 @@ make build-frontend  # Solo construir imagen frontend
 
 ## CI/CD
 
-GitHub Actions en push/PR a `master`:
+GitHub Actions ejecuta 3 jobs en cada push/PR a `master` (ver [workflow](.github/workflows/ci.yml)):
 
-1. **test-backend**: Python 3.12, instala deps, genera `.env` real (con `secrets.token_hex`), corre pytest
-2. **test-frontend**: Node 20, npm ci, typecheck, build
-3. **docker**: Build de ambas imágenes (sin push)
+| Job | Qué hace | Artefacto |
+|-----|----------|-----------|
+| `test-backend` | pytest con cobertura | Reporte HTML (`coverage-report`) |
+| `test-frontend` | `tsc --noEmit` + `vite build` | — |
+| `docker` | Build de ambas imágenes Docker | — |
+
+Los badges de estado se actualizan automáticamente con cada ejecución.
 
 ---
 

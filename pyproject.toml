@@ -2,6 +2,19 @@
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["backend"]
+addopts = "--tb=short --cov=app --cov-report=term-missing --cov-report=html:coverage_html"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__init__.py", "tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise Exception",
+    "raise NotImplementedError",
+]
 
 [tool.ruff]
 line-length = 120
