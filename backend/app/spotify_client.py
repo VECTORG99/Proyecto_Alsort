@@ -16,12 +16,13 @@ RATE_LIMIT_WINDOW = 60
 
 
 class SpotifyClient:
-    _request_timestamps: list[float] = []
-
     def __init__(self, user: User, db: AsyncSession):
         self.user = user
         self.db = db
         self._base_url = "https://api.spotify.com/v1"
+        self._request_timestamps: list[float] = []
+        self._rate_lock = asyncio.Lock()
+        self._client = httpx.AsyncClient()
 
     async def _ensure_token(self):
         if datetime.now(timezone.utc).timestamp() > self.user.token_expires_at:
@@ -32,15 +33,16 @@ class SpotifyClient:
         return {"Authorization": f"Bearer {self.user.access_token}"}
 
     async def _rate_limit_wait(self):
-        now = asyncio.get_event_loop().time()
-        cutoff = now - RATE_LIMIT_WINDOW
-        self.__class__._request_timestamps = [t for t in self._request_timestamps if t > cutoff]
+        async with self._rate_lock:
+            now = asyncio.get_event_loop().time()
+            cutoff = now - RATE_LIMIT_WINDOW
+            self._request_timestamps = [t for t in self._request_timestamps if t > cutoff]
 
-        if len(self._request_timestamps) >= RATE_LIMIT_MAX:
-            wait = self._request_timestamps[0] - cutoff
-            if wait > 0:
-                await asyncio.sleep(wait)
-            self.__class__._request_timestamps = []
+            if len(self._request_timestamps) >= RATE_LIMIT_MAX:
+                wait = self._request_timestamps[0] - cutoff
+                if wait > 0:
+                    await asyncio.sleep(wait)
+                self._request_timestamps = [t for t in self._request_timestamps if t > asyncio.get_event_loop().time() - RATE_LIMIT_WINDOW]
 
     async def _request(
         self,
@@ -57,20 +59,19 @@ class SpotifyClient:
         for attempt in range(max_retries + 1):
             await self._rate_limit_wait()
 
-            async with httpx.AsyncClient() as client:
-                try:
-                    resp = await client.request(method, url, headers=headers, **kwargs)
-                except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
-                    if attempt < max_retries:
-                        wait = 2 ** attempt
-                        logger.warning("Request failed (attempt %d/%d) %s %s: %s. Retrying in %ds",
-                                       attempt + 1, max_retries, method, path, e, wait)
-                        await asyncio.sleep(wait)
-                        continue
-                    logger.error("Request failed after %d retries %s %s: %s", max_retries, method, path, e)
-                    raise Exception(f"Spotify API request failed after {max_retries} retries: {e}")
+            try:
+                resp = await self._client.request(method, url, headers=headers, **kwargs)
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+                if attempt < max_retries:
+                    wait = 2 ** attempt
+                    logger.warning("Request failed (attempt %d/%d) %s %s: %s. Retrying in %ds",
+                                   attempt + 1, max_retries, method, path, e, wait)
+                    await asyncio.sleep(wait)
+                    continue
+                logger.error("Request failed after %d retries %s %s: %s", max_retries, method, path, e)
+                raise Exception(f"Spotify API request failed after {max_retries} retries: {e}")
 
-            self.__class__._request_timestamps.append(asyncio.get_event_loop().time())
+            self._request_timestamps.append(asyncio.get_event_loop().time())
 
             if resp.status_code == 429 and attempt < max_retries:
                 retry_after = int(resp.headers.get("Retry-After", 2 ** attempt))
@@ -160,15 +161,9 @@ class SpotifyClient:
     async def create_playlist(self, name: str, description: str, public: bool, track_uris: list[str]) -> dict:
         logger.info("Creating Spotify playlist name=%s tracks=%d", name, len(track_uris))
 
-        user_resp = await self._request("GET", "/me")
-        if user_resp.status_code != 200:
-            raise Exception("Failed to get user info")
-
-        user_id = user_resp.json()["id"]
-
         playlist_resp = await self._request(
             "POST",
-            f"/users/{user_id}/playlists",
+            "/me/playlists",
             json={"name": name, "description": description, "public": public},
         )
         if playlist_resp.status_code not in (200, 201):
@@ -203,6 +198,14 @@ class SpotifyClient:
         track_ids = [t["id"] for t in tracks if t.get("id")]
         features_map = await self.fetch_audio_features(track_ids)
 
+        existing_result = await self.db.execute(
+            select(CachedTrack).where(
+                CachedTrack.track_id.in_(track_ids),
+                CachedTrack.spotify_user_id == user_spotify_id,
+            )
+        )
+        existing_tracks = {ct.track_id: ct for ct in existing_result.scalars().all()}
+
         for track in tracks:
             tid = track.get("id")
             if not tid:
@@ -218,8 +221,11 @@ class SpotifyClient:
 
             year = None
             release_date = (track.get("album") or {}).get("release_date", "")
-            if release_date:
-                year = int(release_date[:4])
+            if release_date and len(release_date) >= 4:
+                try:
+                    year = int(release_date[:4])
+                except ValueError:
+                    year = None
 
             images = (track.get("album") or {}).get("images", [])
             album_image_url = images[0]["url"] if images else None
@@ -228,13 +234,7 @@ class SpotifyClient:
 
             features = features_map.get(tid)
 
-            existing = await self.db.execute(
-                select(CachedTrack).where(
-                    CachedTrack.track_id == tid,
-                    CachedTrack.spotify_user_id == user_spotify_id,
-                )
-            )
-            existing_track = existing.scalar_one_or_none()
+            existing_track = existing_tracks.get(tid)
 
             if existing_track:
                 existing_track.track_name = track["name"]

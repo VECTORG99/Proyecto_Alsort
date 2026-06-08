@@ -85,6 +85,8 @@ async def create_playlist_from_filters(
     full_req = FilterRequest(
         and_filters=filter_req.and_filters,
         or_filters=filter_req.or_filters,
+        sort_by=filter_req.sort_by,
+        sort_order=filter_req.sort_order,
         limit=SPOTIFY_PLAYLIST_MAX,
         offset=0,
     )
@@ -94,14 +96,13 @@ async def create_playlist_from_filters(
         logger.warning("No tracks match filter criteria user=%s", user.spotify_id)
         raise ValueError("No tracks match the filter criteria")
 
-    tracks_to_add = filtered_tracks[:SPOTIFY_PLAYLIST_MAX]
-    total_added = len(tracks_to_add)
+    total_added = len(filtered_tracks)
 
     if total_matched > SPOTIFY_PLAYLIST_MAX:
         logger.warning("Truncating playlist from %d to %d tracks", total_matched, SPOTIFY_PLAYLIST_MAX)
 
     client = SpotifyClient(user, db)
-    track_uris = [f"spotify:track:{t.track_id}" for t in tracks_to_add]
+    track_uris = [f"spotify:track:{t.track_id}" for t in filtered_tracks[:SPOTIFY_PLAYLIST_MAX]]
     playlist = await client.create_playlist(name, description, public, track_uris)
 
     return {

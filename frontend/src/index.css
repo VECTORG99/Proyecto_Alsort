@@ -160,8 +160,6 @@ textarea { resize: vertical; font-family: inherit; }
 
 .header-right { display: flex; align-items: center; gap: 12px; }
 
-.sync-msg { color: var(--primary); font-size: 0.85rem; }
-
 .btn-sync { background: var(--surface2); color: var(--text); }
 .btn-sync:hover { background: #333; }
 
@@ -284,15 +282,6 @@ textarea { resize: vertical; font-family: inherit; }
 
 .btn-create:hover:not(:disabled) { background: var(--primary-hover); }
 
-.success-msg {
-  background: rgba(39, 174, 96, 0.15);
-  color: var(--success);
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  font-size: 0.85rem;
-  margin-bottom: 12px;
-}
-
 .error-msg {
   background: rgba(231, 76, 60, 0.15);
   color: var(--error);
@@ -300,11 +289,6 @@ textarea { resize: vertical; font-family: inherit; }
   border-radius: var(--radius);
   font-size: 0.85rem;
   margin-bottom: 12px;
-}
-
-.success-msg.warning {
-  background: rgba(243, 156, 18, 0.15);
-  color: #f39c12;
 }
 
 .truncation-msg {

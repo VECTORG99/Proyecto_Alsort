@@ -33,3 +33,14 @@ docker-compose.yml
 
 # CI
 .github/
+
+# Tests (not needed in production images)
+backend/tests/
+.pytest_cache/
+
+# Docs
+README.md
+AGENTS.md
+nginx.conf
+Makefile
+.prettierrc*

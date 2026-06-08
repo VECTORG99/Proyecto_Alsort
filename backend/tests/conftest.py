@@ -19,7 +19,7 @@ def client():
 def sample_track():
     return TrackOut(
         id="1",
-        track_id="spotify:track:abc",
+        track_id="abc",
         track_name="Test Song",
         artists="Test Artist",
         album="Test Album",
@@ -43,7 +43,7 @@ def tracks(sample_track):
         sample_track,
         TrackOut(
             id="2",
-            track_id="spotify:track:def",
+            track_id="def",
             track_name="Acoustic Ballad",
             artists="Folk Singer",
             album="Folk Album",
@@ -61,7 +61,7 @@ def tracks(sample_track):
         ),
         TrackOut(
             id="3",
-            track_id="spotify:track:ghi",
+            track_id="ghi",
             track_name="Workout Banger",
             artists="Gym Bro",
             album="Fitness",
@@ -79,7 +79,7 @@ def tracks(sample_track):
         ),
         TrackOut(
             id="4",
-            track_id="spotify:track:jkl",
+            track_id="jkl",
             track_name="Old Jazz",
             artists="Miles Tone",
             album="Blue",
@@ -97,7 +97,7 @@ def tracks(sample_track):
         ),
         TrackOut(
             id="5",
-            track_id="spotify:track:mno",
+            track_id="mno",
             track_name="Pop Hit",
             artists="Pop Star",
             album="Pop Album",

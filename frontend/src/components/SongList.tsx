@@ -47,10 +47,6 @@ export default function SongList({
   const { isLoading } = useLoading()
   const [search, setSearch] = useState('')
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const from = total === 0 ? 0 : page * pageSize + 1
-  const to = Math.min((page + 1) * pageSize, total)
-
   const filteredTracks = useMemo(() => {
     if (!search.trim()) return tracks
     const q = search.toLowerCase()
@@ -61,6 +57,11 @@ export default function SongList({
         t.album.toLowerCase().includes(q),
     )
   }, [tracks, search])
+
+  const displayTotal = search.trim() ? filteredTracks.length : total
+  const displayFrom = displayTotal === 0 ? 0 : page * pageSize + 1
+  const displayTo = Math.min((page + 1) * pageSize, displayTotal)
+  const totalPages = Math.max(1, Math.ceil(displayTotal / pageSize))
 
   if (isLoading) {
     return (
@@ -80,12 +81,13 @@ export default function SongList({
   return (
     <div className="songlist">
       <div className="songlist-header">
-        <h2>Resultados ({total} canciones)</h2>
+        <h2>{search.trim() ? `Resultados (${filteredTracks.length} de ${total})` : `Resultados (${total} canciones)`}</h2>
         <div className="songlist-toolbar">
           <input
             className="search-input"
             type="text"
             placeholder="Buscar en resultados..."
+            aria-label="Buscar en resultados"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -164,29 +166,36 @@ export default function SongList({
 
       <div className="pagination">
         <div className="pagination-info">
-          {from}–{to} de {total}
+          {search.trim() ? `${filteredTracks.length} coincidencias` : `${displayFrom}–${displayTo} de ${total}`}
         </div>
         <div className="pagination-controls">
-          <select
-            className="page-size-select"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {pageSizes.map((s) => (
-              <option key={s} value={s}>{s} / pág</option>
-            ))}
-          </select>
-          <button
-            className="btn-page"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 0}
-          >‹ Anterior</button>
-          <span className="page-indicator">{page + 1} de {totalPages}</span>
-          <button
-            className="btn-page"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page + 1 >= totalPages}
-          >Siguiente ›</button>
+          {!search.trim() && (
+            <>
+              <select
+                className="page-size-select"
+                value={pageSize}
+                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              >
+                {pageSizes.map((s) => (
+                  <option key={s} value={s}>{s} / pág</option>
+                ))}
+              </select>
+              <button
+                className="btn-page"
+                onClick={() => onPageChange(page - 1)}
+                disabled={page <= 0}
+              >‹ Anterior</button>
+              <span className="page-indicator">{page + 1} de {totalPages}</span>
+              <button
+                className="btn-page"
+                onClick={() => onPageChange(page + 1)}
+                disabled={page + 1 >= totalPages}
+              >Siguiente ›</button>
+            </>
+          )}
+          {search.trim() && (
+            <span className="page-indicator">Búsqueda local — cambia los filtros o la búsqueda</span>
+          )}
         </div>
       </div>
     </div>

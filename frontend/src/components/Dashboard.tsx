@@ -53,6 +53,7 @@ export default function Dashboard({ user }: DashboardProps) {
       setPage(pg)
     } catch (e) {
       console.error('Filter error:', e)
+      addToast('Error al filtrar canciones', 'error')
     } finally {
       stopLoading()
     }
@@ -111,6 +112,8 @@ export default function Dashboard({ user }: DashboardProps) {
             filterRequest={{
               and_filters: currentFilters.current.and,
               or_filters: currentFilters.current.or,
+              sort_by: sortBy,
+              sort_order: sortOrder,
               limit: 10000,
               offset: 0,
             }}

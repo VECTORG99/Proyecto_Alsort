@@ -62,7 +62,5 @@ install: install-backend install-frontend
 # === Clean ===
 
 clean:
-	rm -rf frontend/dist
-	rm -rf backend/__pycache__ backend/app/__pycache__
-	rm -rf .pytest_cache
+	rm -rf frontend/dist .pytest_cache
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

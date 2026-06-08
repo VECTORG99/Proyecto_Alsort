@@ -13,16 +13,19 @@ const FILTER_TYPES: FilterType[] = [
   'instrumentalness', 'acousticness', 'tempo', 'workout',
 ]
 
+let filterIdCounter = 0
+
 function getDefaultValue(type: FilterType, operator: FilterOperator): FilterValue {
+  const currentYear = new Date().getFullYear()
   if (operator === 'between') {
-    return type === 'year' ? [2000, 2024] :
+    return type === 'year' ? [currentYear - 10, currentYear] :
            type === 'duration_ms' ? [60000, 300000] :
            type === 'tempo' ? [80, 160] : [0, 1]
   }
   if (type === 'explicit') return true
   if (type === 'workout') return true
   if (type === 'artist' || type === 'album' || type === 'genre') return ''
-  if (type === 'year') return 2020
+  if (type === 'year') return currentYear
   if (type === 'duration_ms') return 180000
   if (type === 'popularity') return 50
   if (type === 'instrumentalness' || type === 'acousticness') return 0.5
@@ -32,13 +35,15 @@ function getDefaultValue(type: FilterType, operator: FilterOperator): FilterValu
 
 export default function FilterPanel({ onApply }: FilterPanelProps) {
   const { isLoading } = useLoading()
-  const [andFilters, setAndFilters] = useState<FilterCriterion[]>([])
-  const [orFilters, setOrFilters] = useState<FilterCriterion[]>([])
+  const [andFilters, setAndFilters] = useState<FilterCriterionWithKey[]>([])
+  const [orFilters, setOrFilters] = useState<FilterCriterionWithKey[]>([])
 
   const addFilter = useCallback((group: 'and' | 'or') => {
     const type: FilterType = 'year'
     const operator = FILTER_OPERATORS[type][0]
-    const criterion: FilterCriterion = { type, operator, value: getDefaultValue(type, operator) }
+    const criterion: FilterCriterionWithKey = {
+      type, operator, value: getDefaultValue(type, operator), _key: filterIdCounter++,
+    }
     if (group === 'and') {
       setAndFilters((prev) => [...prev, criterion])
     } else {
@@ -112,9 +117,11 @@ export default function FilterPanel({ onApply }: FilterPanelProps) {
   )
 }
 
+type FilterCriterionWithKey = FilterCriterion & { _key: number }
+
 interface FilterGroupProps {
   label: string
-  filters: FilterCriterion[]
+  filters: FilterCriterionWithKey[]
   group: 'and' | 'or'
   onAdd: () => void
   onUpdate: (index: number, updates: Partial<FilterCriterion>) => void
@@ -131,7 +138,7 @@ function FilterGroup({ label, filters, group, onAdd, onUpdate, onRemove }: Filte
       {filters.length === 0 && <p className="filter-empty">Sin filtros. Añade uno para empezar.</p>}
       {filters.map((filter, idx) => (
         <FilterRow
-          key={idx}
+          key={filter._key}
           criterion={filter}
           onChange={(updates) => onUpdate(idx, updates)}
           onRemove={() => onRemove(idx)}

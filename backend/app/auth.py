@@ -1,6 +1,9 @@
 import uuid
 import hashlib
 import base64
+import json
+import httpx
+import secrets
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
@@ -16,7 +19,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def generate_code_verifier() -> str:
-    return base64.urlsafe_b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes).decode().rstrip("=")
+    return base64.urlsafe_b64encode(secrets.token_bytes(64)).decode().rstrip("=")
 
 
 def generate_code_challenge(verifier: str) -> str:
@@ -30,10 +33,10 @@ async def login():
     verifier = generate_code_verifier()
     challenge = generate_code_challenge(verifier)
 
-    import json
+    state = secrets.token_urlsafe(32)
 
-    state = base64.urlsafe_b64encode(
-        json.dumps({"v": verifier}).encode()
+    spotify_state = base64.urlsafe_b64encode(
+        json.dumps({"v": verifier, "s": state}).encode()
     ).decode()
 
     params = (
@@ -41,7 +44,7 @@ async def login():
         f"&client_id={settings.spotify_client_id}"
         f"&scope=user-library-read playlist-modify-public playlist-modify-private"
         f"&redirect_uri={settings.spotify_redirect_uri}"
-        f"&state={state}"
+        f"&state={spotify_state}"
         f"&code_challenge_method=S256"
         f"&code_challenge={challenge}"
     )
@@ -59,8 +62,6 @@ async def callback(
     error: str | None = None,
     db: AsyncSession = Depends(get_session),
 ):
-    import json
-    import httpx
 
     if error:
         logger.warning("OAuth callback error=%s", error)
@@ -171,7 +172,6 @@ async def get_me(request: Request, db: AsyncSession = Depends(get_session)):
 
 
 async def refresh_spotify_token(user: User, db: AsyncSession):
-    import httpx
 
     if not user.refresh_token:
         logger.warning("No refresh token for user spotify_id=%s", user.spotify_id)
