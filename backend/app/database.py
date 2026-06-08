@@ -6,8 +6,14 @@ from alembic.config import Config
 from alembic import command
 import uuid
 import os
+from urllib.parse import urlparse
 
 from .config import settings
+
+_db_path = urlparse(settings.database_url).path
+_db_dir = os.path.dirname(_db_path)
+if _db_dir and not os.path.exists(_db_dir):
+    os.makedirs(_db_dir, exist_ok=True)
 
 engine = create_async_engine(settings.database_url, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

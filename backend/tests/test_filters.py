@@ -34,7 +34,7 @@ def test_duration_filter(tracks):
 
     result = apply_filters(tracks, [criterion], [])
     assert len(result) == 1
-    assert result[0].track_id == "spotify:track:jkl"
+    assert result[0].track_id == "jkl"
 
 
 def test_explicit_filter(tracks):
@@ -43,7 +43,7 @@ def test_explicit_filter(tracks):
 
     result = apply_filters(tracks, [criterion], [])
     assert len(result) == 1
-    assert result[0].track_id == "spotify:track:ghi"
+    assert result[0].track_id == "ghi"
 
 
 def test_artist_contains(tracks):
@@ -61,7 +61,7 @@ def test_genre_contains(tracks):
 
     result = apply_filters(tracks, [criterion], [])
     assert len(result) == 1
-    assert result[0].track_id == "spotify:track:abc"
+    assert result[0].track_id == "abc"
 
 
 def test_genre_or_contains(tracks):
@@ -88,7 +88,7 @@ def test_instrumentalness_filter(tracks):
 
     result = apply_filters(tracks, [criterion], [])
     assert len(result) == 1
-    assert result[0].track_id == "spotify:track:jkl"
+    assert result[0].track_id == "jkl"
 
 
 def test_acousticness_filter(tracks):
@@ -106,7 +106,7 @@ def test_workout_filter(tracks):
 
     result = apply_filters(tracks, [criterion], [])
     assert len(result) == 1
-    assert result[0].track_id == "spotify:track:ghi"
+    assert result[0].track_id == "ghi"
 
 
 def test_and_combination(tracks):
