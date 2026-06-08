@@ -41,6 +41,5 @@ backend/tests/
 # Docs
 README.md
 AGENTS.md
-nginx.conf
 Makefile
 .prettierrc*
