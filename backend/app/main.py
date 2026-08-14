@@ -1,7 +1,10 @@
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +37,27 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+
+
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX_REQUESTS = 10
+_auth_rate_limits: dict[str, list[float]] = defaultdict(list)
+
+
+@app.middleware("http")
+async def auth_rate_limit(request: Request, call_next):
+    if request.url.path.startswith("/auth/"):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        timestamps = _auth_rate_limits[client_ip]
+        _auth_rate_limits[client_ip] = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
+        if len(_auth_rate_limits[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."},
+            )
+        _auth_rate_limits[client_ip].append(now)
+    return await call_next(request)
 
 
 @app.get("/health")
