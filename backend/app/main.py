@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import router as auth_router
 from .config import settings
-from .database import User, get_session, init_db
+from .database import Playlist, User, get_session, init_db
 from .logger import logger, setup_logging
 from .models import CreatePlaylistRequest, FilterRequest
 from .playlist_manager import create_playlist_from_filters, get_filtered_tracks
@@ -82,6 +83,12 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_sess
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid session")
+
+    session_age = datetime.now(timezone.utc) - (user.created_at if user.created_at.tzinfo else user.created_at.replace(tzinfo=timezone.utc))
+    if session_age > timedelta(hours=settings.session_timeout_hours):
+        logger.warning("Session expired user=%s age=%s", user.spotify_id, session_age)
+        raise HTTPException(status_code=401, detail="Session expired. Please login again.")
+
     return user
 
 
@@ -139,3 +146,27 @@ async def create_playlist(
     except ValueError as e:
         logger.warning("Playlist creation failed user=%s error=%s", user.spotify_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/playlists/{playlist_id}")
+async def delete_playlist(
+    playlist_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+):
+    logger.info("Deleting playlist user=%s playlist_id=%s", user.spotify_id, playlist_id)
+    result = await db.execute(
+        select(Playlist).where(
+            Playlist.id == playlist_id,
+            Playlist.spotify_user_id == user.spotify_id,
+        )
+    )
+    playlist = result.scalar_one_or_none()
+    if not playlist:
+        logger.warning("Playlist not found user=%s playlist_id=%s", user.spotify_id, playlist_id)
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    await db.delete(playlist)
+    await db.commit()
+    logger.info("Playlist deleted user=%s playlist_id=%s name=%s",
+                user.spotify_id, playlist_id, playlist.name)
+    return {"deleted": playlist_id}
